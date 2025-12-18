@@ -1,9 +1,12 @@
 export type UserRole = 'student' | 'teacher' | 'admin';
 
+// src/types/user.ts — НИҲОӢ ВА ДУРУСТ
 export interface User {
+  _id?: string;
   id: string;
   email: string;
-  name: string;
+  name?: string;           // агар истифода мекунӣ
+  fullName?: string;       // ← ИЛОВА КАРДЕМ! (барои муаллимон ва админҳо)
   role: UserRole;
   avatar?: string;
   faculty?: string;
@@ -12,7 +15,6 @@ export interface User {
   subjects?: string[];
   gpa?: number;
 }
-
 export interface Subject {
   id: string;
   name: string;

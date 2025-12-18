@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import axios from "axios";
 import {
   GraduationCap,
   BookOpen,
@@ -18,41 +17,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "react-toastify";
+import axios from "axios";
 
 export default function Login() {
   const navigate = useNavigate();
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const { login } = useAuth();
-
+  const apiUrl = import.meta.env.VITE_API_URL;
+  // ✅ ФАҚАТ ИН ҶО ИСЛОҲ ШУД
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const { data } = await axios.post(`${apiUrl}/auth/login`, {
-        email,
-        password,
-      });
+      // POST ба backend
+      const res = await axios.post(`${apiUrl}/auth/login`, { email, password });
+      const { token, user } = res.data;
+       localStorage.setItem("user",JSON.stringify(user))
+      // 🔹 Истифодаи login аз context
+      login({ token, user });
 
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("token", data.token);
-
-      login(email, password, data.user.role);
-      navigate(`/${data.user.role}`);
-
-      toast.success("Воридшавӣ бомуваффақият анҷом ёфт!", {
-        position: "top-right",
-        autoClose: 3000,
-        theme: "colored",
-      });
+      toast.success("Воридшавӣ бомуваффақият анҷом ёфт!");
+      navigate("/", { replace: true });
     } catch (error: any) {
       toast.error(
         error.response?.data?.message ||
+          error.message ||
           "Хатогӣ ҳангоми воридшавӣ. Боз кӯшиш кунед!"
       );
     } finally {
@@ -62,7 +55,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Қисми чап — тасвир ва маълумот */}
+      {/* Қисми чап — ДИЗАЙН ҲАМОН */}
       <div className="hidden lg:flex lg:w-1/2 gradient-hero relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-64 h-64 bg-primary-foreground rounded-full blur-3xl" />
@@ -76,7 +69,6 @@ export default function Login() {
             transition={{ duration: 0.6 }}
             className="text-center max-w-md"
           >
-            {/* Иконкаҳои ҳаракаткунанда */}
             <div className="relative h-48 mb-8">
               <motion.div
                 animate={{ y: [-10, 10, -10] }}
@@ -139,7 +131,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Қисми рост — формаи воридшавӣ */}
+      {/* Қисми рост — ФОРМА (ҲАМОН ДИЗАЙН) */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -147,7 +139,6 @@ export default function Login() {
           transition={{ duration: 0.5 }}
           className="w-full max-w-md"
         >
-          {/* Лого */}
           <div className="flex items-center gap-3 mb-8">
             <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center">
               <Building2 className="w-7 h-7 text-primary-foreground" />
@@ -162,39 +153,33 @@ export default function Login() {
 
           <Card variant="elevated">
             <CardContent className="p-6">
-              <h3 className="text-xl font-semibold mb-1">
-                Хуш омадед!
-              </h3>
+              <h3 className="text-xl font-semibold mb-1">Хуш омадед!</h3>
               <p className="text-muted-foreground text-sm mb-6">
                 Барои идома ба ҳисоби худ ворид шавед
               </p>
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Почтаи электронӣ</Label>
+                  <Label>Почтаи электронӣ</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      id="email"
-                      placeholder="Email-и худро ворид кунед"
+                      className="pl-10"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Рамз (парол)</Label>
+                  <Label>Рамз (парол)</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      id="password"
                       type="password"
-                      placeholder="Пароли худро ворид кунед"
+                      className="pl-10"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
                     />
                   </div>
                 </div>
@@ -204,6 +189,7 @@ export default function Login() {
                   variant="gradient"
                   size="lg"
                   className="w-full"
+                  disabled={isLoading}
                 >
                   {isLoading ? "Дар ҳоли воридшавӣ..." : "Ворид шудан"}
                   <ArrowRight className="w-4 h-4 ml-1" />

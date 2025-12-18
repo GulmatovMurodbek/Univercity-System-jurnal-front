@@ -1,85 +1,83 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { User, UserRole } from '@/types';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { jwtDecode } from "jwt-decode";
+import { User } from "@/types";
+
+interface JwtPayload {
+  id: string;
+  email: string;
+  role: string;
+  exp: number;
+}
 
 interface AuthContextType {
   user: User | null;
+  loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
+  login: (data: { token: string; user: User }) => void;
   logout: () => void;
-  selectRole: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const mockUsers: Record<UserRole, User> = {
-  student: {
-    id: '1',
-    email: 'student@university.edu',
-    name: 'Akbar Mahmudov',
-    role: 'student',
-    faculty: 'Computer Science',
-    course: 3,
-    group: 'CS-301',
-    gpa: 3.75,
-  },
-  teacher: {
-    id: '2',
-    email: 'teacher@university.edu',
-    name: 'Dr. Farrukh Karimov',
-    role: 'teacher',
-    faculty: 'Computer Science',
-    subjects: ['Data Structures', 'Algorithms', 'Database Systems'],
-  },
-  admin: {
-    id: '3',
-    email: 'admin@university.edu',
-    name: 'Rustam Aliyev',
-    role: 'admin',
-    faculty: 'Administration',
-  },
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-console.log(user);
+  const [loading, setLoading] = useState(true);
 
-  // Ҳангоми боркунӣ, user-ро аз localStorage бор мекунем
+  // 🔁 Ҳангоми refresh
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode<JwtPayload>(token);
+
+      // ⏰ Token expired?
+      if (decoded.exp * 1000 < Date.now()) {
+        localStorage.removeItem("token");
+        setLoading(false);
+        return;
+      }
+
+      setUser({
+        id: decoded.id,
+        email: decoded.email,
+        role: decoded.role,
+      } as User);
+    } catch {
+      localStorage.removeItem("token");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const login = async (email: string, password: string, role: UserRole) => {
-    // Simulate API call
-    const loggedUser = mockUsers[role];
-    setUser(loggedUser);
-
-    // Ба localStorage захира мекунем
-    localStorage.setItem('user', JSON.stringify(loggedUser));
+  const login = ({ token, user }: { token: string; user: User }) => {
+    localStorage.setItem("token", token);
+    setUser(user);
   };
 
   const logout = () => {
+    localStorage.removeItem("token");
     setUser(null);
-    localStorage.removeItem('user');
-  };
-
-  const selectRole = (role: UserRole) => {
-    const selectedUser = mockUsers[role];
-    setUser(selectedUser);
-    localStorage.setItem('user', JSON.stringify(selectedUser));
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        loading,
         isAuthenticated: !!user,
         login,
         logout,
-        selectRole,
       }}
     >
       {children}
@@ -88,9 +86,7 @@ console.log(user);
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }

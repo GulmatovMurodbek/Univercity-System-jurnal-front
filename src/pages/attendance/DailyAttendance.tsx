@@ -1,4 +1,4 @@
-// src/pages/attendance/JournalByGroupPage.tsx — НИҲОӢ ВА ПУРРА КОРКУНАНДА
+// src/pages/attendance/JournalByGroupPage.tsx — НИҲОӢ ВА БО ҲИМОЯ
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
@@ -10,18 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, ArrowLeft, CalendarDays, Clock, User, UserPlus, Users } from "lucide-react";
+import { FileText, ArrowLeft, CalendarDays, Clock, User, UserPlus, Users, Lock } from "lucide-react";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddStudentsToGroupModal } from "@/components/shared/addStudentToGroup";
+import { cn } from "@/lib/utils";
 
 interface Lesson {
   subjectName: string;
   teacherName: string;
+  teacherId: string; // ← ИЛОВА: ID-и муаллим
   shift: 1 | 2;
   slot: number;
 }
@@ -35,7 +36,6 @@ export default function JournalByGroupPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [groupName, setGroupName] = useState<string>("Гурӯҳ");
@@ -45,6 +45,8 @@ export default function JournalByGroupPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL;
+  const today = new Date();
+  const isToday = format(selectedDate, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
 
   // Гирифтани дарсҳо барои рӯзи интихобшуда
   const fetchLessonsForDate = async (date: Date) => {
@@ -60,7 +62,21 @@ export default function JournalByGroupPage() {
         }
       );
 
-      setLessons(res.data.lessons || []);
+      let fetchedLessons = res.data.lessons || [];
+
+      // Агар муаллим бошад — фақат дарсҳои худ-ашро нишон медиҳем
+      if (user?.role === "teacher") {
+        fetchedLessons = fetchedLessons.filter(
+          (lesson: Lesson) => lesson.teacherId === user._id
+        );
+      }
+
+      // Агар рӯзи гузашта бошад — муаллим наметавонад кушояд
+      if (!isToday && user?.role === "teacher") {
+        fetchedLessons = [];
+      }
+
+      setLessons(fetchedLessons);
       setGroupName(res.data.groupName || "Гурӯҳ");
     } catch (err: any) {
       console.error("Хатогӣ дар гирифтани дарсҳо:", err);
@@ -70,7 +86,6 @@ export default function JournalByGroupPage() {
     }
   };
 
-  // Гирифтани рӯйхати донишҷӯёни гурӯҳ
   const fetchGroupStudents = async () => {
     if (!groupId) return;
     setStudentsLoading(true);
@@ -81,7 +96,7 @@ export default function JournalByGroupPage() {
       });
       setStudents(res.data.students || []);
     } catch (err) {
-      console.error("Хатогӣ дар гирифтани донишҷӯён:", err);
+      console.error(err);
       setStudents([]);
     } finally {
       setStudentsLoading(false);
@@ -93,7 +108,7 @@ export default function JournalByGroupPage() {
       fetchLessonsForDate(selectedDate);
       fetchGroupStudents();
     }
-  }, [groupId, selectedDate]);
+  }, [groupId, selectedDate, user]);
 
   const zonedDate = toZonedTime(selectedDate, "Asia/Dushanbe");
 
@@ -101,6 +116,15 @@ export default function JournalByGroupPage() {
     const base = shift === 1 ? 8 : 13;
     const start = base + (slot - 1);
     return `${start}:00 – ${start}:50`;
+  };
+
+  // Санҷиши имкони кушодани журнал
+  const canOpenJournal = (lesson: Lesson) => {
+    if (user?.role === "admin") return true;
+    if (user?.role === "teacher") {
+      return isToday && lesson.teacherId === user._id;
+    }
+    return false;
   };
 
   return (
@@ -131,13 +155,10 @@ export default function JournalByGroupPage() {
           </div>
 
           <div className="grid lg:grid-cols-12 gap-8">
-            {/* Части чап: Календар + Рӯйхати донишҷӯён */}
+            {/* Части чап */}
             <div className="lg:col-span-4 space-y-8">
               {/* Календар */}
-              <motion.div
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
+              <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }}>
                 <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur">
                   <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-2xl">
                     <CardTitle className="flex items-center gap-3 text-xl">
@@ -152,6 +173,7 @@ export default function JournalByGroupPage() {
                       onSelect={(d) => d && setSelectedDate(d)}
                       locale={ru}
                       className="rounded-2xl border-2 border-indigo-100"
+                      disabled={user?.role === "teacher" ? (date) => date > new Date() || date < new Date(new Date().setDate(new Date().getDate() - 30)) : undefined}
                     />
                     <div className="mt-6 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl text-center">
                       <p className="text-4xl font-bold text-indigo-700">
@@ -163,6 +185,12 @@ export default function JournalByGroupPage() {
                       <p className="text-sm text-indigo-500 font-medium">
                         {format(zonedDate, "EEEE", { locale: ru })}
                       </p>
+                      {!isToday && user?.role === "teacher" && (
+                        <Badge variant="secondary" className="mt-4">
+                          <Lock className="w-4 h-4 mr-2" />
+                          Фақат имрӯз дастрас аст
+                        </Badge>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -203,7 +231,6 @@ export default function JournalByGroupPage() {
                             </Avatar>
                             <div className="flex-1">
                               <p className="font-semibold text-lg">{student.fullName}</p>
-                              <p className="text-xs text-muted-foreground">ID: {student._id}</p>
                             </div>
                           </div>
                         ))}
@@ -216,11 +243,7 @@ export default function JournalByGroupPage() {
 
             {/* Қисми рост: Дарсҳо */}
             <div className="lg:col-span-8">
-              <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
+              <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
                 <Card className="shadow-2xl border-0 overflow-hidden">
                   <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white">
                     <CardTitle className="text-3xl font-bold flex items-center gap-3">
@@ -247,57 +270,70 @@ export default function JournalByGroupPage() {
                           <CalendarDays className="w-16 h-16 text-indigo-400" />
                         </div>
                         <h3 className="text-2xl font-bold text-slate-600 dark:text-slate-300">
-                          Дар ин рӯз дарс нест
+                          {user?.role === "teacher" && !isToday
+                            ? "Фақат дарсҳои имрӯз дастрас аст"
+                            : "Дар ин рӯз дарс нест"}
                         </h3>
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        {lessons.map((lesson, i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.1 }}
-                          >
-                            <Card className="overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-white dark:bg-slate-800">
-                              <div className="p-8">
-                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                                  <div className="flex-1">
-                                    <h3 className="text-3xl font-bold text-slate-800 dark:text-white mb-4">
-                                      {lesson.subjectName}
-                                    </h3>
-                                    <div className="flex flex-wrap items-center gap-4 text-lg">
-                                      <Badge variant="secondary" className="text-base px-4 py-2 flex items-center gap-2">
-                                        <User className="w-4 h-4" />
-                                        {lesson.teacherName}
-                                      </Badge>
-                                      <Badge variant="outline" className="text-base px-4 py-2 flex items-center gap-2">
-                                        <Clock className="w-4 h-4" />
-                                        {getLessonTime(lesson.shift, lesson.slot)}
-                                      </Badge>
-                                      <span className={`px-4 py-2 rounded-full text-white font-semibold ${lesson.shift === 1 ? "bg-blue-600" : "bg-purple-600"}`}>
-                                        {lesson.shift === 1 ? "Басти 1" : "Басти 2"}
-                                      </span>
-                                    </div>
-                                  </div>
+                        {lessons.map((lesson, i) => {
+                          const canOpen = canOpenJournal(lesson);
 
-                                  <Button
-                                    asChild
-                                    size="lg"
-                                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-lg px-10 py-7 shadow-xl"
-                                  >
-                                    <Link
-                                      to={`/${user?.role}/journal/${format(selectedDate, "yyyy-MM-dd")}/${lesson.shift === 1 ? "first" : "second"}/${lesson.slot}`}
-                                    >
-                                      <FileText className="mr-3 h-6 w-6" />
-                                      Кушодани журнал
-                                    </Link>
-                                  </Button>
+                          return (
+                            <motion.div
+                              key={i}
+                              initial={{ opacity: 0, y: 30 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: i * 0.1 }}
+                            >
+                              <Card className={cn("overflow-hidden border-0 shadow-xl transition-all duration-300", canOpen ? "hover:shadow-2xl" : "opacity-75")}>
+                                <div className="p-8">
+                                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                    <div className="flex-1">
+                                      <h3 className="text-3xl font-bold text-slate-800 dark:text-white mb-4">
+                                        {lesson.subjectName}
+                                      </h3>
+                                      <div className="flex flex-wrap items-center gap-4 text-lg">
+                                        <Badge variant="secondary" className="text-base px-4 py-2 flex items-center gap-2">
+                                          <User className="w-4 h-4" />
+                                          {lesson.teacherName}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-base px-4 py-2 flex items-center gap-2">
+                                          <Clock className="w-4 h-4" />
+                                          {getLessonTime(lesson.shift, lesson.slot)}
+                                        </Badge>
+                                        <span className={`px-4 py-2 rounded-full text-white font-semibold ${lesson.shift === 1 ? "bg-blue-600" : "bg-purple-600"}`}>
+                                          {lesson.shift === 1 ? "Басти 1" : "Басти 2"}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {canOpen ? (
+                                      <Button
+                                        asChild
+                                        size="lg"
+                                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-lg px-10 py-7 shadow-xl"
+                                      >
+                                        <Link
+                                          to={`/${user?.role}/journal/${format(selectedDate, "yyyy-MM-dd")}/${lesson.shift === 1 ? "first" : "second"}/${lesson.slot}`}
+                                        >
+                                          <FileText className="mr-3 h-6 w-6" />
+                                          Кушодани журнал
+                                        </Link>
+                                      </Button>
+                                    ) : (
+                                      <div className="flex items-center gap-3 text-lg text-muted-foreground">
+                                        <Lock className="w-6 h-6" />
+                                        <span>Дастрас нест</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            </Card>
-                          </motion.div>
-                        ))}
+                              </Card>
+                            </motion.div>
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>
@@ -307,14 +343,16 @@ export default function JournalByGroupPage() {
           </div>
         </div>
 
-        {/* Модалкаи илова кардани донишҷӯён */}
-        <AddStudentsToGroupModal
-          open={addModalOpen}
-          setOpen={setAddModalOpen}
-          groupId={groupId!}
-          groupName={groupName}
-          onSuccess={fetchGroupStudents}
-        />
+        {/* Модалкаи илова кардани донишҷӯён (фақат админ) */}
+        {user?.role === "admin" && (
+          <AddStudentsToGroupModal
+            open={addModalOpen}
+            setOpen={setAddModalOpen}
+            groupId={groupId!}
+            groupName={groupName}
+            onSuccess={fetchGroupStudents}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

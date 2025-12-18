@@ -49,16 +49,10 @@ function ProtectedRoute({
   children: React.ReactNode;
   allowedRoles?: string[];
 }) {
-  const { isAuthenticated, user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { user, loading, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    // Ҳамин ки user бор шуд, loading қатъ мешавад
-    setLoading(false);
-  }, [user]);
-
+  // ⏳ ТО ВАҚТЕ auth/me КОР МЕКУНАД — ҲЕҶ ҶО НАМЕРАВАД
   if (loading) {
-    // Ҳангоми боркунӣ, "Loading..." нишон медиҳад
     return (
       <div className="flex min-h-screen items-center justify-center">
         Loading...
@@ -66,18 +60,19 @@ function ProtectedRoute({
     );
   }
 
+  // 🔐 Агар login нашудааст
   if (!isAuthenticated) {
-    console.log("NAKADAGI");
-    
     return <Navigate to="/login" replace />;
   }
 
+  // 🚫 Агар role иҷозат надорад
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return <Navigate to={`/${user.role}`} replace />;
   }
 
   return <>{children}</>;
 }
+
 
 function AppRoutes() {
   return (

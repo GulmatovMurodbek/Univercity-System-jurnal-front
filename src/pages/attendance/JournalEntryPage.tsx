@@ -162,7 +162,7 @@ export default function JournalEntryPage() {
       );
       alert("Журнал бомуваффақият сабт шуд!");
     } catch (err) {
-      alert("Хатогӣ ҳангоми сабт");
+      alert("Хатогӣ ҳангоми сабт ё шумо устоди ин фан нестед");
     } finally {
       setSaving(false);
     }
