@@ -1,3 +1,4 @@
+// src/pages/admin/WeeklyAttendancePage.tsx
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -16,6 +17,7 @@ import {
   CalendarDays,
   BookOpen,
   TrendingUp,
+  AlertCircle,
 } from "lucide-react";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,13 +59,13 @@ interface Group {
 const getStatusStyle = (status: AttendanceStatus) => {
   switch (status) {
     case "present":
-      return "bg-[green] text-primary-foreground shadow-lg";
+      return "bg-emerald-500 text-white shadow-lg";
     case "absent":
-      return "bg-[red] text-primary-foreground shadow-lg";
+      return "bg-red-500 text-white shadow-lg";
     case "late":
-      return "bg-[yellow] text-primary-foreground shadow-lg";
+      return "bg-amber-500 text-white shadow-lg";
     default:
-      return "bg-[lightgrey] text-muted-foreground";
+      return "bg-gray-200 text-gray-600";
   }
 };
 
@@ -89,7 +91,19 @@ const getInitials = (name: string) => {
     .toUpperCase();
 };
 
-const calculateStats = (students: Student[]) => {
+// Ҳисоби ғоибӣ барои як донишҷӯ (фақат ҳафтаи ҷорӣ)
+const calculateStudentAbsencesInWeek = (student: Student): number => {
+  let absentCount = 0;
+  student.attendance.forEach((day) => {
+    day.lessons.forEach((status) => {
+      if (status === "absent") absentCount++;
+    });
+  });
+  return absentCount;
+};
+
+// Статистика барои ҳафтаи ҷорӣ
+const calculateWeekStats = (students: Student[]) => {
   let total = 0;
   let present = 0;
   let absent = 0;
@@ -151,9 +165,15 @@ export default function WeeklyAttendancePage() {
     if (selectedGroup) fetchData();
   }, [selectedGroup, week]);
 
-  const stats = data ? calculateStats(data.students) : null;
+  const stats = data ? calculateWeekStats(data.students) : null;
 
-  // Group selection screen
+  // Муайян кардани семестри ҷорӣ
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const secondSemesterStart = new Date(currentYear + 1, 1, 1); // 1 феврал
+  const isSecondSemester = now >= secondSemesterStart;
+  const currentSemesterName = isSecondSemester ? "Семестри 2 (аз 1 феврал)" : "Семестри 1 (аз 1 сентябр)";
+
   if (!selectedGroup) {
     return (
       <DashboardLayout>
@@ -174,11 +194,7 @@ export default function WeeklyAttendancePage() {
               </SelectTrigger>
               <SelectContent>
                 {groups.map((g) => (
-                  <SelectItem
-                    key={g._id}
-                    value={g._id}
-                    className="text-base py-3"
-                  >
+                  <SelectItem key={g._id} value={g._id} className="text-base py-3">
                     {g.name}
                   </SelectItem>
                 ))}
@@ -204,19 +220,16 @@ export default function WeeklyAttendancePage() {
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold">
-                      {data?.groupName || "Гурӯҳ"}
+                      {data?.groupName || "Гурӯҳ"} — {currentSemesterName}
                     </h1>
                     <p className="text-primary-foreground/80">
-                      {data?.weekStart} — {data?.weekEnd}
+                      Ҳафтаи {data?.weekNumber || week} ({data?.weekStart} — {data?.weekEnd})
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <Select
-                    value={selectedGroup}
-                    onValueChange={setSelectedGroup}
-                  >
+                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
                     <SelectTrigger className="w-56 bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground">
                       <SelectValue />
                     </SelectTrigger>
@@ -240,8 +253,8 @@ export default function WeeklyAttendancePage() {
                     </Button>
                     <div className="flex items-center gap-2 px-3">
                       <CalendarDays className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700 min-w-[60px] text-center">
-                        Week {data?.weekNumber || week}
+                      <span className="text-sm font-medium text-gray-700 min-w-[80px] text-center">
+                        Ҳафтаи {data?.weekNumber || week}
                       </span>
                     </div>
                     <Button
@@ -258,7 +271,7 @@ export default function WeeklyAttendancePage() {
             </div>
           </Card>
 
-          {/* Stats Cards */}
+          {/* Stats Cards — фақат барои ҳафтаи ҷорӣ */}
           {stats && !loading && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
               <Card className="p-5 border-0 shadow-md">
@@ -276,11 +289,11 @@ export default function WeeklyAttendancePage() {
               </Card>
               <Card className="p-5 border-0 shadow-md">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-status-present/20 flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6 text-status-present" />
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-emerald-500" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Ҳузурӣ</p>
+                    <p className="text-sm text-muted-foreground">Ҳузурӣ (ҳафта)</p>
                     <p className="text-2xl font-bold text-foreground">
                       {stats.rate}%
                     </p>
@@ -289,13 +302,11 @@ export default function WeeklyAttendancePage() {
               </Card>
               <Card className="p-5 border-0 shadow-md">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-status-absent/20 flex items-center justify-center">
-                    <span className="text-xl font-bold text-status-absent">
-                      ✗
-                    </span>
+                  <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                    <span className="text-xl font-bold text-red-500">✗</span>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Ғоибӣ</p>
+                    <p className="text-sm text-muted-foreground">Ғоибӣ (ҳафта)</p>
                     <p className="text-2xl font-bold text-foreground">
                       {stats.absent}
                     </p>
@@ -304,13 +315,11 @@ export default function WeeklyAttendancePage() {
               </Card>
               <Card className="p-5 border-0 shadow-md">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-status-late/20 flex items-center justify-center">
-                    <span className="text-xl font-bold text-status-late">
-                      L
-                    </span>
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                    <span className="text-xl font-bold text-amber-500">L</span>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Дер омад</p>
+                    <p className="text-sm text-muted-foreground">Дер омад (ҳафта)</p>
                     <p className="text-2xl font-bold text-foreground">
                       {stats.late}
                     </p>
@@ -338,8 +347,11 @@ export default function WeeklyAttendancePage() {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-secondary">
-                      <th className="p-4 text-left font-semibold text-secondary-foreground sticky left-0 bg-secondary z-20 min-w-[220px] border-r border-border">
+                      <th className="p-4 text-left font-semibold text-secondary-foreground sticky left-0 bg-secondary z-20 min-w-[280px] border-r border-border">
                         Донишҷӯ
+                      </th>
+                      <th className="p-4 text-left font-semibold text-secondary-foreground sticky left-0 bg-secondary z-20 min-w-[100px] border-r border-border">
+                        Ғоибӣ (ҳафта)
                       </th>
                       {data?.days.map((day) => (
                         <th
@@ -358,6 +370,9 @@ export default function WeeklyAttendancePage() {
                     </tr>
                     <tr className="bg-muted/50">
                       <th className="sticky left-0 bg-muted/50 z-10 border-r border-border"></th>
+                      <th className="sticky left-0 bg-muted/50 z-10 border-r border-border px-4 py-2 text-center text-xs font-medium text-muted-foreground">
+                        Ҳамагӣ
+                      </th>
                       {data?.days.map((day, dayIdx) =>
                         [1, 2, 3, 4, 5, 6].map((lesson) => (
                           <th
@@ -371,42 +386,53 @@ export default function WeeklyAttendancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data?.students.map((student, studentIdx) => (
-                      <tr
-                        key={student._id}
-                        className="border-b border-border hover:bg-muted/30 transition-colors"
-                        style={{ animationDelay: `${studentIdx * 50}ms` }}
-                      >
-                        <td className="p-4 sticky left-0 bg-card z-10 border-r border-border">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-10 h-10 ring-2 ring-border">
-                              <AvatarFallback className="text-sm font-semibold gradient-primary text-primary-foreground">
-                                {getInitials(student.fullName)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium text-foreground text-sm">
-                              {student.fullName}
-                            </span>
-                          </div>
-                        </td>
-                        {student.attendance.map((day, dayIdx) =>
-                          day.lessons.map((status, lessonIdx) => (
-                            <td
-                              key={`${dayIdx}-${lessonIdx}`}
-                              className="px-1 py-3 text-center"
-                            >
-                              <div
-                                className={`w-8 h-8 mx-auto rounded-lg flex items-center justify-center text-xs font-bold transition-all hover:scale-110 ${getStatusStyle(
-                                  status
-                                )}`}
-                              >
-                                {getStatusLetter(status)}
+                    {data?.students.map((student, studentIdx) => {
+                      const weekAbsentCount = calculateStudentAbsencesInWeek(student);
+                      
+                      return (
+                        <tr
+                          key={student._id}
+                          className="border-b border-border hover:bg-muted/30 transition-colors"
+                          style={{ animationDelay: `${studentIdx * 50}ms` }}
+                        >
+                          <td className="p-4 sticky left-0 bg-card z-10 border-r border-border">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="w-10 h-10 ring-2 ring-border">
+                                <AvatarFallback className="text-sm font-semibold text-primary-foreground gradient-primary">
+                                  {getInitials(student.fullName)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <span className="font-medium text-foreground text-sm">
+                                  {student.fullName}
+                                </span>
                               </div>
-                            </td>
-                          ))
-                        )}
-                      </tr>
-                    ))}
+                            </div>
+                          </td>
+                          <td className="p-4 sticky left-0 bg-card z-10 border-r border-border text-center">
+                            <span className={`text-sm font-semibold ${weekAbsentCount > 0 ? 'text-red-600' : 'text-foreground'}`}>
+                              {weekAbsentCount}
+                            </span>
+                          </td>
+                          {student.attendance.map((day, dayIdx) =>
+                            day.lessons.map((status, lessonIdx) => (
+                              <td
+                                key={`${dayIdx}-${lessonIdx}`}
+                                className="px-1 py-3 text-center"
+                              >
+                                <div
+                                  className={`w-8 h-8 mx-auto rounded-lg flex items-center justify-center text-xs font-bold transition-all hover:scale-110 ${getStatusStyle(
+                                    status
+                                  )}`}
+                                >
+                                  {getStatusLetter(status)}
+                                </div>
+                              </td>
+                            ))
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -415,25 +441,25 @@ export default function WeeklyAttendancePage() {
               <div className="p-4 border-t border-border bg-muted/30">
                 <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-status-present flex items-center justify-center text-primary-foreground text-xs font-bold">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
                       ✓
                     </div>
                     <span className="text-muted-foreground">Ҳозир</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-status-absent flex items-center justify-center text-primary-foreground text-xs font-bold">
+                    <div className="w-6 h-6 rounded-lg bg-red-500 flex items-center justify-center text-white text-xs font-bold">
                       ✗
                     </div>
                     <span className="text-muted-foreground">Ғоиб</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-status-late flex items-center justify-center text-primary-foreground text-xs font-bold">
+                    <div className="w-6 h-6 rounded-lg bg-amber-500 flex items-center justify-center text-white text-xs font-bold">
                       L
                     </div>
                     <span className="text-muted-foreground">Дер омад</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-status-empty flex items-center justify-center text-muted-foreground text-xs">
+                    <div className="w-6 h-6 rounded-lg bg-gray-200 flex items-center justify-center text-gray-600 text-xs">
                       —
                     </div>
                     <span className="text-muted-foreground">Холӣ</span>

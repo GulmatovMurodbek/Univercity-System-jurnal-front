@@ -38,6 +38,7 @@ import { useEffect, useState } from "react";
 import JournalEntryPage from "./pages/attendance/JournalEntryPage";
 import JournalByGroupPage from "./pages/attendance/DailyAttendance";
 import WeeklyGradePage from "./pages/admin/weeklyGrade";
+import AdminNotesPage from "./pages/admin/feedback";
 
 const queryClient = new QueryClient();
 
@@ -106,6 +107,15 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/noutes"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminNotesPage />
+          </ProtectedRoute>
+        }
+      />
+      
       <Route
         path="/admin/teachers"
         element={

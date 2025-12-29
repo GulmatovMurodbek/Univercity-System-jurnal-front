@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   UserCircle,
   Building2,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ const adminNavItems: NavItem[] = [
   { icon: BookOpen, label: 'Фанҳо', path: '/admin/subjects' },
   { icon: CalendarDays, label: 'Ҳозиршавии ҳафтаина', path: '/admin/attendance/weekly' },
   { icon: CalendarDays, label: 'Баҳоҳои ҳафтаина', path: '/admin/grades/weekly' },
+  { icon: MessageSquare, label: 'Эзоҳҳо', path: '/admin/noutes' },
   { icon: Calendar, label: 'Ҷадвали ҳафтаина', path: '/admin/schedule' },
   { icon: Settings, label: 'Танзимот', path: '/admin/settings' },
 ];
