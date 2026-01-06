@@ -40,7 +40,7 @@ export default function Subjects() {
   let [open, setOpen] = useState(false);
   let [openEdit, setOpenEdit] = useState(false);
   const [subjectToEdit, setSubjectToEdit] = useState(null);
-  let[groups,setGroups]=useState([])
+  let [groups, setGroups] = useState([])
   const handleEditClick = (subject) => {
     setSubjectToEdit(subject);
     setOpenEdit(true);
@@ -72,7 +72,7 @@ export default function Subjects() {
       console.error(error);
     }
   }
-  async function deleteSubject(id:any) {
+  async function deleteSubject(id: any) {
     try {
       await axios.delete(`${apiUrl}/subjects/${id}`)
       getSubjects()
@@ -82,23 +82,25 @@ export default function Subjects() {
   }
   useEffect(() => {
     getSubjects();
-    getTeachers();
+    if (user?.role === "admin") {
+      getTeachers();
+    }
     getGroups()
   }, []);
   return (
-    
+
     <DashboardLayout>
       {user?.role == "admin" ? (
-      <PageHeader
-        title="Subjects"
-        description={`Managing ${subjects.length} subjects`}
-        actions={
-          <Button onClick={() => setOpen(true)} variant="gradient">
-            <PlusCircle className="w-4 h-4" />
-            Илова кардани фан
-          </Button>
-        }
-      />):null}
+        <PageHeader
+          title="Subjects"
+          description={`Managing ${subjects.length} subjects`}
+          actions={
+            <Button onClick={() => setOpen(true)} variant="gradient">
+              <PlusCircle className="w-4 h-4" />
+              Илова кардани фан
+            </Button>
+          }
+        />) : null}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -114,9 +116,8 @@ export default function Subjects() {
           >
             <Card variant="interactive" className="h-full overflow-hidden">
               <div
-                className={`h-2 bg-gradient-to-r ${
-                  subjectColors[idx % subjectColors?.length]
-                }`}
+                className={`h-2 bg-gradient-to-r ${subjectColors[idx % subjectColors?.length]
+                  }`}
               />
               <CardContent className="p-5">
                 <h3 className="font-bold text-lg mb-3">{subject.name}</h3>
@@ -157,14 +158,14 @@ export default function Subjects() {
 
                 <div className="mt-4 pt-4 border-t border-border/50">
                   <div className="flex items-center justify-between text-xs">
-                  {user?.role == "admin" ? (
-                    <Button onClick={()=>deleteSubject(subject._id)} className="bg-[#ff5757] p-3">
-                      <ArchiveX />
-                    </Button>):null}
                     {user?.role == "admin" ? (
-                    <Button onClick={()=>handleEditClick(subject)} className="bg-[#2626ff] p-3">
-                      <Pen />
-                    </Button>):null}
+                      <Button onClick={() => deleteSubject(subject._id)} className="bg-[#ff5757] p-3">
+                        <ArchiveX />
+                      </Button>) : null}
+                    {user?.role == "admin" ? (
+                      <Button onClick={() => handleEditClick(subject)} className="bg-[#2626ff] p-3">
+                        <Pen />
+                      </Button>) : null}
                   </div>
                 </div>
               </CardContent>
@@ -178,7 +179,7 @@ export default function Subjects() {
         getSubjects={getSubjects}
         teachers={teachers}
       />
-      <EditSubjectModal open={openEdit} setOpen={setOpenEdit} subjectToEdit={subjectToEdit} getSubjects={getSubjects} teachers={teachers}  />
+      <EditSubjectModal open={openEdit} setOpen={setOpenEdit} subjectToEdit={subjectToEdit} getSubjects={getSubjects} teachers={teachers} />
     </DashboardLayout>
   );
 }

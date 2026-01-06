@@ -93,7 +93,10 @@ export default function AdminWeeklyGradePage() {
       const token = localStorage.getItem("token");
       const res = await axios.get(
         `${apiUrl}/journal/weekly-grades/${selectedGroup}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          params: { subjectId: selectedSubject || undefined },
+          headers: { Authorization: `Bearer ${token}` }
+        }
       );
       setData(res.data);
     } catch (err) {
@@ -106,7 +109,7 @@ export default function AdminWeeklyGradePage() {
 
   useEffect(() => {
     if (selectedGroup) fetchData();
-  }, [selectedGroup]);
+  }, [selectedGroup, selectedSubject]);
 
   // Ҳисоби миёнаи фан – фақат барои семестри ҷорӣ (16 ҳафта аз оғози семестр)
   const subjectStudent16Weeks = React.useMemo(() => {
@@ -123,7 +126,7 @@ export default function AdminWeeklyGradePage() {
 
     // Муайян кардани семестри ҷорӣ
     const isSecondSemester = now >= secondSemesterStart;
-    const currentSemesterStart:any = isSecondSemester ? secondSemesterStart : firstSemesterStart;
+    const currentSemesterStart: any = isSecondSemester ? secondSemesterStart : firstSemesterStart;
 
     const lessonCounts = data.weeklyLessonCounts?.[selectedSubject] || {};
     const expectedCounts = Array(16).fill(0);
@@ -136,35 +139,52 @@ export default function AdminWeeklyGradePage() {
       const weeklyActualCounts = Array(16).fill(0);
 
       student.grades.forEach((day) => {
-        // Рӯзи якшанбе ҳисоб накунем
-        const [dd, mm] = day.date.split('.').map(Number);
-        const dayYear = mm < 9 ? currentYear : currentYear + 1;
-        const dayDate:any = new Date(dayYear, mm - 1, dd);
-        if (dayDate.getDay() === 0) return; // Sunday
+        // Use weekNumber directly from backend if available, otherwise fallback to date calc
+        let weekIndex = -1;
 
-        // Фақат рӯзҳои семестри ҷорӣ
-        if (dayDate < currentSemesterStart) return;
+        if (typeof day.weekNumber === 'number') {
+          weekIndex = day.weekNumber - 1;
+        } else {
+          // Fallback (should not be needed with new backend)
+          const [dd, mm] = day.date.split('.').map(Number);
+          const dayYear = mm < 9 ? currentYear : currentYear + 1;
+          const dayDate: any = new Date(dayYear, mm - 1, dd);
 
-        const diffDays = Math.floor((dayDate - currentSemesterStart) / (1000 * 60 * 60 * 24));
-        let weekIndex = Math.floor(diffDays / 7);
+          // Рӯзи якшанбе ҳисоб накунем
+          if (dayDate.getDay() === 0) return; // Sunday
+          // Фақат рӯзҳои семестри ҷорӣ
+          if (dayDate < currentSemesterStart) return;
+
+          const diffDays = Math.floor((dayDate - currentSemesterStart) / (1000 * 60 * 60 * 24));
+          weekIndex = Math.floor(diffDays / 7);
+        }
 
         if (weekIndex < 0 || weekIndex >= 16) return;
 
         day.lessons.forEach((lesson) => {
-          if (lesson.subjectId === selectedSubject) {
-            const grade = lesson.taskGrade ?? lesson.preparationGrade ?? 0;
-            weeklySums[weekIndex] += grade;
-            weeklyActualCounts[weekIndex] += 1;
+          // Compare strings safely
+          if (String(lesson.subjectId) === String(selectedSubject)) {
+            // Parse grade safely
+            const rawGrade = lesson.taskGrade ?? lesson.preparationGrade;
+            const grade = rawGrade ? parseFloat(String(rawGrade)) : 0;
+
+            // Only count if there is a grade
+            if (grade > 0) {
+              weeklySums[weekIndex] += grade;
+              weeklyActualCounts[weekIndex] += 1;
+            }
           }
         });
       });
 
       const weeklyAverages = weeklySums.map((sum, i) => {
-        const expected = expectedCounts[i];
-        if (expected > 0) {
-          return Number((sum / expected).toFixed(2));
+        // Use actual count of graded lessons for average, not expected count
+        // This matches 'MyGrades' logic: Average = Sum / Count (of graded items)
+        const count = weeklyActualCounts[i];
+        if (count > 0) {
+          return Number((sum / count).toFixed(2));
         }
-        return weeklyActualCounts[i] > 0 ? Number((sum / weeklyActualCounts[i]).toFixed(2)) : 0;
+        return 0; // No grades this week = 0 average
       });
 
       const first8Avg = weeklyAverages.slice(0, 8).reduce((a, b) => a + b, 0) / 8;
