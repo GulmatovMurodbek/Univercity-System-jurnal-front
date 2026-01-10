@@ -91,15 +91,32 @@ export function WeeklyScheduleModal({
 
   useEffect(() => {
     if (open) {
-      axios.get(`${import.meta.env.VITE_API_URL}/teachers`).then((res) => setTeachers(res.data));
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      axios.get(`${import.meta.env.VITE_API_URL}/teachers`, { headers })
+        .then((res) => setTeachers(res.data))
+        .catch(err => console.error("Error fetching teachers:", err));
 
       if (initialSchedule?.week) {
-        setSchedule(initialSchedule.week);
+        // МУҲИМ: Ислоҳи хатогӣ барои боргузории маълумот
+        const mappedWeek = initialSchedule.week.map((day: any) => ({
+          day: day.day,
+          lessons: day.lessons.map((lesson: any) => ({
+            time: lesson.time,
+            subjectId: lesson.subjectId?._id || lesson.subjectId || "",
+            teacherId: lesson.teacherId?._id || lesson.teacherId || "",
+            classroom: lesson.classroom || "",
+            lessonType: lesson.lessonType || "lecture",
+            _id: lesson._id
+          }))
+        }));
+        setSchedule(mappedWeek);
       } else {
         setSchedule(
           weekDaysEn.map((day) => ({
             day,
-            lessons: times.map((time,index) => ({
+            lessons: times.map((time) => ({
               time: time,
               subjectId: "",
               teacherId: "",
@@ -125,6 +142,9 @@ export function WeeklyScheduleModal({
 
   const handleSave = async () => {
     try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
       const payload = {
         groupId,
         week: schedule.map((d => ({
@@ -139,7 +159,7 @@ export function WeeklyScheduleModal({
         }))),
       }
 
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/weeklySchedule`, payload);
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/weeklySchedule`, payload, { headers });
       onSave(res.data);
       setOpen(false);
     } catch (err) {
@@ -190,8 +210,8 @@ export function WeeklyScheduleModal({
                             <SelectTrigger className="h-10 text-xs">
                               <SelectValue>
                                 {lesson.lessonType === "lecture" ? "Лексия" :
-                                 lesson.lessonType === "practice" ? "Амалӣ" :
-                                 lesson.lessonType === "lab" ? "Лабораторӣ" : "Намуд"}
+                                  lesson.lessonType === "practice" ? "Амалӣ" :
+                                    lesson.lessonType === "lab" ? "Лабораторӣ" : "Намуд"}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>

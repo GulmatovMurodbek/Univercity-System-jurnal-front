@@ -12,19 +12,19 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const data = [
-  { day: 'Mon', attendance: 96 },
-  { day: 'Tue', attendance: 94 },
-  { day: 'Wed', attendance: 92 },
-  { day: 'Thu', attendance: 95 },
-  { day: 'Fri', attendance: 91 },
-  { day: 'Sat', attendance: 88 },
+  { day: 'Дш', attendance: 96 },
+  { day: 'Сш', attendance: 94 },
+  { day: 'Чш', attendance: 92 },
+  { day: 'Пш', attendance: 95 },
+  { day: 'Ҷм', attendance: 91 },
+  { day: 'Шб', attendance: 88 },
 ];
 
 export function AttendanceChart() {
   return (
     <Card variant="default">
       <CardHeader>
-        <CardTitle className="text-lg">Weekly Attendance</CardTitle>
+        <CardTitle className="text-lg">Давомоти ҳафтаина</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-64">
@@ -52,7 +52,7 @@ export function AttendanceChart() {
                   boxShadow: 'var(--shadow-lg)',
                 }}
                 labelStyle={{ color: 'hsl(var(--foreground))' }}
-                formatter={(value: number) => [`${value}%`, 'Attendance']}
+                formatter={(value: number) => [`${value}%`, 'Давомот']}
               />
               <Bar dataKey="attendance" radius={[8, 8, 0, 0]}>
                 {data.map((entry, index) => (

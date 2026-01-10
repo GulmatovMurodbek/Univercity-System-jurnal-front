@@ -58,6 +58,12 @@
     --status-warning: 38 92% 50%;
     --status-danger: 0 72% 55%;
     --status-info: 200 85% 50%;
+    
+    /* Grade Colors */
+    --grade-excellent: 142 70% 45%;
+    --grade-good: 230 70% 55%;
+    --grade-satisfactory: 38 92% 50%;
+    --grade-poor: 0 72% 55%;
 
     /* Attendance */
     --attendance-present: 142 70% 45%;

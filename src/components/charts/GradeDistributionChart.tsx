@@ -10,17 +10,17 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const data = [
-  { name: 'Excellent', value: 35, color: 'hsl(var(--grade-excellent))' },
-  { name: 'Good', value: 40, color: 'hsl(var(--grade-good))' },
-  { name: 'Satisfactory', value: 18, color: 'hsl(var(--grade-satisfactory))' },
-  { name: 'Poor', value: 7, color: 'hsl(var(--grade-poor))' },
+  { name: 'Аъло', value: 35, color: 'hsl(var(--grade-excellent))' },
+  { name: 'Хуб', value: 40, color: 'hsl(var(--grade-good))' },
+  { name: 'Қаноатбахш', value: 18, color: 'hsl(var(--grade-satisfactory))' },
+  { name: 'Ғайриқаноатбахш', value: 7, color: 'hsl(var(--grade-poor))' },
 ];
 
 export function GradeDistributionChart() {
   return (
     <Card variant="default">
       <CardHeader>
-        <CardTitle className="text-lg">Grade Distribution</CardTitle>
+        <CardTitle className="text-lg">Тақсимоти баҳоҳо</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-64">
@@ -46,7 +46,7 @@ export function GradeDistributionChart() {
                   borderRadius: '12px',
                   boxShadow: 'var(--shadow-lg)',
                 }}
-                formatter={(value: number) => [`${value}%`, 'Students']}
+                formatter={(value: number) => [`${value}%`, 'Донишҷӯён']}
               />
               <Legend
                 iconType="circle"

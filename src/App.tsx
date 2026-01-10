@@ -115,7 +115,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
+
       <Route
         path="/admin/teachers"
         element={
@@ -144,7 +144,7 @@ function AppRoutes() {
         path="/admin/grades/weekly"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <WeeklyGradePage/>
+            <WeeklyGradePage />
           </ProtectedRoute>
         }
       />
@@ -157,11 +157,11 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/admin/journal/:date/:shift/:slot"
+        path="/admin/journal/:date/:shift/:slot/:groupId/:subjectId"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <JournalEntryPage />
-          </ProtectedRoute> 
+          </ProtectedRoute>
         }
       />
       <Route
@@ -207,11 +207,11 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/teacher/journal/:date/:shift/:slot"
+        path="/teacher/journal/:date/:shift/:slot/:groupId/:subjectId"
         element={
           <ProtectedRoute allowedRoles={["teacher"]}>
             <JournalEntryPage />
-          </ProtectedRoute> 
+          </ProtectedRoute>
         }
       />
       <Route
@@ -247,7 +247,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/teacher/journal/:date/:shift/:slot"
+        path="/teacher/journal/:date/:shift/:slot/:groupId/:subjectId"
         element={
           <ProtectedRoute allowedRoles={["teacher"]}>
             <JournalEntryPage />

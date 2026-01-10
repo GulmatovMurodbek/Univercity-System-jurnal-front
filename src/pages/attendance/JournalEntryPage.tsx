@@ -44,10 +44,12 @@ interface Student {
   notes: string;
 }
 export default function JournalEntryPage() {
-  const { date, shift, slot } = useParams<{
+  const { date, shift, slot, groupId: urlGroupId, subjectId: urlSubjectId } = useParams<{
     date: string;
     shift: string;
     slot: string;
+    groupId: string;
+    subjectId: string;
   }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -59,6 +61,7 @@ export default function JournalEntryPage() {
   const [subjectName, setSubjectName] = useState("Фан");
   const [groupName, setGroupName] = useState("Гурӯҳ");
   const [groupId, setGroupId] = useState<string>("");
+  const [lessonType, setLessonType] = useState<"lecture" | "practice" | "lab">("practice");
 
   // Autocomplete search
   const [open, setOpen] = useState(false);
@@ -73,7 +76,7 @@ export default function JournalEntryPage() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `${apiUrl}/journal/${date}/${shift}/${slot}`,
+        `${apiUrl}/journal/${date}/${shift}/${slot}/${urlGroupId}/${urlSubjectId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -84,6 +87,7 @@ export default function JournalEntryPage() {
       setSubjectName(data.subjectId?.name || "Фан");
       setGroupName(data.groupId?.name || "Гурӯҳ");
       setGroupId(data.groupId?._id || "");
+      setLessonType(data.lessonType || "practice");
 
       setStudents(
         data.students.map((s: any) => ({
@@ -91,9 +95,8 @@ export default function JournalEntryPage() {
             _id: s.studentId._id,
             fullName:
               s.studentId.fullName ||
-              `${s.studentId.firstName || ""} ${
-                s.studentId.lastName || ""
-              }`.trim(),
+              `${s.studentId.firstName || ""} ${s.studentId.lastName || ""
+                }`.trim(),
           },
           attendance: s.attendance || "absent",
           preparationGrade: s.preparationGrade,
@@ -216,6 +219,11 @@ export default function JournalEntryPage() {
               <Badge variant="secondary" className="text-lg px-4 py-2">
                 Слот: {slot}
               </Badge>
+              {lessonType === "lecture" && (
+                <Badge variant="outline" className="text-lg px-4 py-2 bg-blue-50 text-blue-700 border-blue-200">
+                  📚 Лексионӣ (Танҳо ҳозирӣ)
+                </Badge>
+              )}
             </div>
           </CardHeader>
         </Card>
@@ -294,8 +302,12 @@ export default function JournalEntryPage() {
                   <TableHead className="w-12 text-center">#</TableHead>
                   <TableHead>Ному насаб</TableHead>
                   <TableHead className="text-center">Ҳозирӣ</TableHead>
-                  <TableHead className="text-center">Омодагӣ</TableHead>
-                  <TableHead className="text-center">Вазифа</TableHead>
+                  {lessonType !== "lecture" && (
+                    <>
+                      <TableHead className="text-center">Омодагӣ</TableHead>
+                      <TableHead className="text-center">Вазифа</TableHead>
+                    </>
+                  )}
                   <TableHead>Эзоҳ</TableHead>
                 </TableRow>
               </TableHeader>
@@ -332,52 +344,56 @@ export default function JournalEntryPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="5"
-                        step="1"
-                        className="w-24 text-center font-medium"
-                        value={student.preparationGrade ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (
-                            val === "" ||
-                            (Number(val) >= 0 && Number(val) <= 5)
-                          ) {
-                            updateStudent(
-                              student.studentId._id,
-                              "preparationGrade",
-                              val === "" ? null : Number(val)
-                            );
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="5"
-                        step="1"
-                        className="w-24 text-center font-medium"
-                        value={student.taskGrade ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (
-                            val === "" ||
-                            (Number(val) >= 0 && Number(val) <= 5)
-                          ) {
-                            updateStudent(
-                              student.studentId._id,
-                              "taskGrade",
-                              val === "" ? null : Number(val)
-                            );
-                          }
-                        }}
-                      />
-                    </TableCell>
+                    {lessonType !== "lecture" && (
+                      <>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="5"
+                            step="1"
+                            className="w-24 text-center font-medium"
+                            value={student.preparationGrade ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (
+                                val === "" ||
+                                (Number(val) >= 0 && Number(val) <= 5)
+                              ) {
+                                updateStudent(
+                                  student.studentId._id,
+                                  "preparationGrade",
+                                  val === "" ? null : Number(val)
+                                );
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="5"
+                            step="1"
+                            className="w-24 text-center font-medium"
+                            value={student.taskGrade ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (
+                                val === "" ||
+                                (Number(val) >= 0 && Number(val) <= 5)
+                              ) {
+                                updateStudent(
+                                  student.studentId._id,
+                                  "taskGrade",
+                                  val === "" ? null : Number(val)
+                                );
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell>
                       <Input
                         placeholder="Шарҳ..."

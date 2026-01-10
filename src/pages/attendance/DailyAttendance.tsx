@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 interface Lesson {
   subjectName: string;
+  subjectId: string; // ← ИЛОВА
   teacherName: string;
   teacherId: string; // ← ИЛОВА: ID-и муаллим
   shift: 1 | 2;
@@ -316,7 +317,7 @@ export default function JournalByGroupPage() {
                                         className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-lg px-10 py-7 shadow-xl"
                                       >
                                         <Link
-                                          to={`/${user?.role}/journal/${format(selectedDate, "yyyy-MM-dd")}/${lesson.shift === 1 ? "first" : "second"}/${lesson.slot}`}
+                                          to={`/${user?.role}/journal/${format(selectedDate, "yyyy-MM-dd")}/${lesson.shift === 1 ? "first" : "second"}/${lesson.slot}/${groupId}/${lesson.subjectId}`}
                                         >
                                           <FileText className="mr-3 h-6 w-6" />
                                           Кушодани журнал

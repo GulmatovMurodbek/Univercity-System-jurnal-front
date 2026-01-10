@@ -77,7 +77,7 @@ export default function WeeklySchedulePage() {
       })
       .catch((err) => {
         console.error(err);
-        setWeeklySchedule(null); 
+        setWeeklySchedule(null);
       })
       .finally(() => {
         setLoading(false);
@@ -97,25 +97,25 @@ export default function WeeklySchedulePage() {
       ? hour >= 13
         ? 6
         : hour >= 12
-        ? 5
-        : hour >= 11
-        ? 4
-        : hour >= 10
-        ? 3
-        : hour >= 9
-        ? 2
-        : 1
+          ? 5
+          : hour >= 11
+            ? 4
+            : hour >= 10
+              ? 3
+              : hour >= 9
+                ? 2
+                : 1
       : hour >= 18
-      ? 6
-      : hour >= 17
-      ? 5
-      : hour >= 16
-      ? 4
-      : hour >= 15
-      ? 3
-      : hour >= 14
-      ? 2
-      : 1;
+        ? 6
+        : hour >= 17
+          ? 5
+          : hour >= 16
+            ? 4
+            : hour >= 15
+              ? 3
+              : hour >= 14
+                ? 2
+                : 1;
 
   return (
     <DashboardLayout>
@@ -137,12 +137,18 @@ export default function WeeklySchedulePage() {
                       <SelectValue placeholder="Гурӯҳро интихоб кунед" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="ALL">
+                        <div className="flex items-center gap-3 font-bold text-primary">
+                          <Users className="w-5 h-5" />
+                          Ҳамаи гурӯҳҳо
+                        </div>
+                      </SelectItem>
                       {groups.map((g) => (
                         <SelectItem key={g._id} value={g._id}>
                           <div className="flex items-center justify-between w-full text-[14px]">
-                            <span >{g.name.slice(0,25)}...</span>
+                            <span >{g.name.slice(0, 25)}...</span>
                             <Badge variant="outline" className="ml-4">
-                             Басти {g.shift}
+                              Басти {g.shift}
                             </Badge>
                           </div>
                         </SelectItem>
@@ -163,18 +169,18 @@ export default function WeeklySchedulePage() {
                   </div>
                 )}
               </div>
-            {user.role == "admin" ?
-            (
-              <Button
-                size="lg"
-                onClick={() => setModalOpen(true)}
-                disabled={!selectedGroup}
-                className="shadow-xl"
-              >
-                <Edit3 className="w-5 h-5 mr-3" />
-                Таҳрир кардан
-              </Button>
-              ):null}
+              {user?.role == "admin" ?
+                (
+                  <Button
+                    size="lg"
+                    onClick={() => setModalOpen(true)}
+                    disabled={!selectedGroup}
+                    className="shadow-xl"
+                  >
+                    <Edit3 className="w-5 h-5 mr-3" />
+                    Таҳрир кардан
+                  </Button>
+                ) : null}
             </div>
           </CardContent>
         </Card>
@@ -203,8 +209,29 @@ export default function WeeklySchedulePage() {
               </div>
             </div>
           </Card>
+        ) : selectedGroup === "ALL" ? (
+          <div className="space-y-12 animate-in fade-in zoom-in-95 duration-700">
+            {Array.isArray(weeklySchedule) && weeklySchedule.map((sched: any) => (
+              <div key={sched._id} className="space-y-6">
+                <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-2xl border">
+                  <Badge variant="default" className="text-lg px-6 py-2">
+                    {sched.groupId?.name || "Гурӯҳи номаълум"}
+                  </Badge>
+                  <Badge variant="outline" className="text-base px-4 py-1">
+                    Басти {sched.groupId?.shift || sched.shift || "?"}
+                  </Badge>
+                </div>
+                <WeeklyScheduleGrid
+                  schedule={sched}
+                  shift={sched.groupId?.shift || sched.shift || 1}
+                  currentDay={currentDayIndex}
+                  currentLesson={currentLesson}
+                />
+              </div>
+            ))}
+          </div>
         ) : (
-          <>
+          <div className="animate-in fade-in zoom-in-95 duration-700">
             <div className="text-center mb-8">
               <h2 className="text-4xl font-bold text-gray-800">
                 Ҷадвали гурӯҳи <span className="text-primary">{selectedGroupName}</span>
@@ -220,7 +247,7 @@ export default function WeeklySchedulePage() {
               currentDay={currentDayIndex}
               currentLesson={currentLesson}
             />
-          </>
+          </div>
         )}
         <WeeklyScheduleModal
           open={modalOpen}

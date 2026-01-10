@@ -1,5 +1,5 @@
 // src/components/schedule/WeeklyScheduleGrid.tsx — бо намуди дарс (Лексия / Амалӣ / Лабораторӣ)
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,7 @@ interface PopulatedLesson {
   subjectId: { name: string };
   teacherId: { fullName: string };
   classroom: string;
-  lessonType: "lecture" | "practice" | "lab"; // ← НАВИН!
+  lessonType: "lecture" | "practice" | "lab";
 }
 
 interface DaySchedule {
@@ -45,11 +45,11 @@ const colors = [
 ];
 
 const getColor = (name: string) => {
+  if (!name) return colors[0];
   const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   return colors[hash % colors.length];
 };
 
-// НАВИН: Ранг ва матни намуди дарс
 const getLessonTypeBadge = (type: string) => {
   switch (type) {
     case "lecture": return { text: "Лексия", color: "bg-blue-500 text-white" };
@@ -59,13 +59,27 @@ const getLessonTypeBadge = (type: string) => {
   }
 };
 
-export function WeeklyScheduleGrid({
+export const WeeklyScheduleGrid = React.memo(({
   schedule,
   shift,
   currentDay = 0,
   currentLesson = 1
-}: WeeklyScheduleGridProps) {
+}: WeeklyScheduleGridProps) => {
   const timeSlots = shift === 1 ? timeSlotsShift1 : timeSlotsShift2;
+
+  const lessonsGrid = useMemo(() => {
+    if (!schedule?.week) return [];
+    const grid: any[][] = Array(6).fill(null).map(() => Array(6).fill(null));
+    schedule.week.forEach((dayData) => {
+      const dayIdx = weekDaysEn.indexOf(dayData.day);
+      if (dayIdx !== -1) {
+        dayData.lessons.forEach((lesson, slotIdx) => {
+          if (slotIdx < 6) grid[slotIdx][dayIdx] = lesson;
+        });
+      }
+    });
+    return grid;
+  }, [schedule]);
 
   if (!schedule?.week?.length) {
     return (
@@ -107,13 +121,13 @@ export function WeeklyScheduleGrid({
                   </div>
                 </td>
 
-                {weekDaysEn.map((dayEn, dayIdx) => {
-                  const lesson = schedule.week.find(d => d.day === dayEn)?.lessons?.[slotIdx];
+                {[0, 1, 2, 3, 4, 5].map((dayIdx) => {
+                  const lesson = lessonsGrid[slotIdx]?.[dayIdx];
                   const isNow = dayIdx === currentDay && slotIdx + 1 === currentLesson;
 
                   return (
                     <td
-                      key={dayEn + time}
+                      key={dayIdx + time}
                       className={cn(
                         "p-3 align-top h-28 transition-all",
                         isNow && "ring-2 ring-primary ring-inset bg-primary/5"
@@ -127,9 +141,8 @@ export function WeeklyScheduleGrid({
                             isNow && "ring-2 ring-primary shadow-lg"
                           )}
                         >
-                          {/* НАВИН: Намуди дарс */}
                           <div className="mb-2">
-                            <Badge className={cn("text-xs font-bold px-2 py-1", getLessonTypeBadge(lesson.lessonType || "lecture").color)}>
+                            <Badge className={cn("text-[10px] font-bold px-2 py-0.5", getLessonTypeBadge(lesson.lessonType || "lecture").color)}>
                               {getLessonTypeBadge(lesson.lessonType || "lecture").text}
                             </Badge>
                           </div>
@@ -166,4 +179,6 @@ export function WeeklyScheduleGrid({
       </div>
     </Card>
   );
-}
+});
+
+WeeklyScheduleGrid.displayName = "WeeklyScheduleGrid";
