@@ -61,10 +61,15 @@ export default function WeeklySchedulePage() {
       return;
     }
 
-    const group = groups.find((g) => g._id === selectedGroup);
-    if (group) {
-      setSelectedGroupName(group.name);
-      setShift(group.shift === 2 ? 2 : 1);
+    if (selectedGroup === "ALL") {
+      setSelectedGroupName("Ҳамаи гурӯҳҳо");
+      // setLoading and fetching is handled below
+    } else {
+      const group = groups.find((g) => g._id === selectedGroup);
+      if (group) {
+        setSelectedGroupName(group.name);
+        setShift(group.shift === 2 ? 2 : 1);
+      }
     }
 
     setLoading(true);
@@ -213,11 +218,21 @@ export default function WeeklySchedulePage() {
           <div className="space-y-12 animate-in fade-in zoom-in-95 duration-700">
             {Array.isArray(weeklySchedule) && weeklySchedule.map((sched: any) => (
               <div key={sched._id} className="space-y-6">
-                <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-2xl border">
-                  <Badge variant="default" className="text-lg px-6 py-2">
-                    {sched.groupId?.name || "Гурӯҳи номаълум"}
-                  </Badge>
-                  <Badge variant="outline" className="text-base px-4 py-1">
+                <div className="flex items-center justify-between bg-muted/20 p-6 rounded-2xl border border-primary/20 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 p-3 rounded-xl">
+                      <Users className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-800">
+                        {sched.groupId?.name || "Гурӯҳи номаълум"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Факултет: {sched.groupId?.faculty || "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-base px-6 py-2">
                     Басти {sched.groupId?.shift || sched.shift || "?"}
                   </Badge>
                 </div>

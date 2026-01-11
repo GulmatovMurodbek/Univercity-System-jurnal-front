@@ -36,12 +36,12 @@ const weekDaysTg = ['Дш', 'Сш', 'Чш', 'Пш', 'Ҷм', 'Шб'];
 const weekDaysEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const colors = [
-  'bg-blue-100 text-blue-800 border-blue-300',
-  'bg-emerald-100 text-emerald-800 border-emerald-300',
-  'bg-purple-100 text-purple-800 border-purple-300',
-  'bg-amber-100 text-amber-800 border-amber-300',
-  'bg-rose-100 text-rose-800 border-rose-300',
-  'bg-cyan-100 text-cyan-800 border-cyan-300',
+  'bg-slate-50 text-slate-900 border-slate-200',
+  'bg-indigo-50 text-indigo-900 border-indigo-100',
+  'bg-emerald-50 text-emerald-900 border-emerald-100',
+  'bg-amber-50 text-amber-900 border-amber-100',
+  'bg-rose-50 text-rose-900 border-rose-100',
+  'bg-cyan-50 text-cyan-900 border-cyan-100',
 ];
 
 const getColor = (name: string) => {
@@ -52,10 +52,10 @@ const getColor = (name: string) => {
 
 const getLessonTypeBadge = (type: string) => {
   switch (type) {
-    case "lecture": return { text: "Лексия", color: "bg-blue-500 text-white" };
-    case "practice": return { text: "Амалӣ", color: "bg-emerald-500 text-white" };
-    case "lab": return { text: "Лаб.", color: "bg-purple-500 text-white" };
-    default: return { text: "—", color: "bg-gray-300 text-gray-600" };
+    case "lecture": return { text: "Лексия", color: "bg-blue-100 text-blue-700 border-blue-200" };
+    case "practice": return { text: "Амалӣ", color: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+    case "lab": return { text: "Лаб.", color: "bg-purple-100 text-purple-700 border-purple-200" };
+    default: return { text: "—", color: "bg-gray-100 text-gray-600 border-gray-200" };
   }
 };
 
@@ -83,41 +83,44 @@ export const WeeklyScheduleGrid = React.memo(({
 
   if (!schedule?.week?.length) {
     return (
-      <Card className="p-10 text-center">
-        <Clock className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-        <p className="text-muted-foreground">Ҷадвал холист</p>
+      <Card className="p-16 text-center border-dashed border-2">
+        <Clock className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+        <h4 className="text-xl font-medium text-muted-foreground">Ҷадвал холист</h4>
+        <p className="text-sm text-muted-foreground/60 mt-2">Барои ин гурӯҳ ҳанӯз ҷадвал тартиб дода нашудааст.</p>
       </Card>
     );
   }
 
   return (
-    <Card className="overflow-hidden border-0 shadow-xl">
+    <Card className="overflow-hidden border shadow-sm rounded-2xl">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="border-b-2 bg-muted/50">
-              <th className="p-3 text-left font-bold sticky left-0 bg-muted/80 z-10 min-w-32">Вақт</th>
+            <tr className="bg-slate-50/80 backdrop-blur-sm border-b">
+              <th className="p-4 text-left font-semibold sticky left-0 bg-slate-50 z-20 w-32 border-r">Вақт</th>
               {weekDaysTg.map((day, i) => (
                 <th
                   key={day}
                   className={cn(
-                    "p-3 text-center font-bold min-w-28",
-                    i === currentDay && "bg-primary/10 text-primary"
+                    "p-4 text-center font-semibold min-w-[160px] relative",
+                    i === currentDay && "text-primary"
                   )}
                 >
                   {day}
-                  {i === currentDay && <Badge className="ml-1 text-[10px]">имрӯз</Badge>}
+                  {i === currentDay && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {timeSlots.map((time, slotIdx) => (
-              <tr key={time} className="border-b hover:bg-muted/20 transition">
-                <td className="p-3 font-medium bg-muted/60 sticky left-0 z-10 border-r text-xs">
-                  <div className="text-center">
-                    <div className="font-bold text-primary">{slotIdx + 1}</div>
-                    <div className="text-muted-foreground">{time}</div>
+              <tr key={time} className="group border-b last:border-0">
+                <td className="p-4 font-medium bg-slate-50/50 sticky left-0 z-10 border-r transition-colors group-hover:bg-slate-100/80">
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs font-bold text-slate-400 mb-1">{slotIdx + 1}</span>
+                    <span className="text-[11px] font-semibold text-slate-600">{time}</span>
                   </div>
                 </td>
 
@@ -129,44 +132,59 @@ export const WeeklyScheduleGrid = React.memo(({
                     <td
                       key={dayIdx + time}
                       className={cn(
-                        "p-3 align-top h-28 transition-all",
-                        isNow && "ring-2 ring-primary ring-inset bg-primary/5"
+                        "p-2 align-top h-32 transition-colors",
+                        isNow && "bg-primary/[0.03]"
                       )}
                     >
                       {lesson?.subjectId ? (
                         <div
                           className={cn(
-                            "rounded-lg border p-3 h-full flex flex-col text-xs transition hover:shadow-md",
+                            "rounded-xl border p-3 h-full flex flex-col shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5",
                             getColor(lesson.subjectId.name),
-                            isNow && "ring-2 ring-primary shadow-lg"
+                            isNow && "ring-1 ring-primary/30 border-primary/20"
                           )}
                         >
-                          <div className="mb-2">
-                            <Badge className={cn("text-[10px] font-bold px-2 py-0.5", getLessonTypeBadge(lesson.lessonType || "lecture").color)}>
+                          <div className="flex justify-between items-start mb-2">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] uppercase tracking-wider font-bold border-none",
+                                getLessonTypeBadge(lesson.lessonType || "lecture").color
+                              )}
+                            >
                               {getLessonTypeBadge(lesson.lessonType || "lecture").text}
                             </Badge>
+                            {isNow && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                                </span>
+                                <span className="text-[10px] font-bold text-primary uppercase">Ҳозир</span>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="font-bold text-base leading-tight">
+                          <div className="font-bold text-sm leading-snug mb-3 line-clamp-2 min-h-[2.5rem]">
                             {lesson.subjectId.name}
                           </div>
-                          <div className="mt-2 space-y-1">
-                            <div className="flex items-center gap-1">
-                              <User className="w-3.5 h-3.5" />
+
+                          <div className="mt-auto pt-2 border-t border-black/5 space-y-1.5">
+                            <div className="flex items-center gap-2 text-[11px] opacity-80 font-medium">
+                              <User className="w-3 h-3 flex-shrink-0" />
                               <span className="truncate">{lesson.teacherId?.fullName}</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5" />
+                            <div className="flex items-center gap-2 text-[11px] opacity-80 font-medium">
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
                               <span>{lesson.classroom || '—'}</span>
                             </div>
                           </div>
-                          {isNow && (
-                            <Badge className="mt-2 text-[10px] self-start animate-pulse">Ҳозир</Badge>
-                          )}
                         </div>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-muted-foreground/30">
-                          {isNow ? "Танаффус" : "—"}
+                        <div className="h-full flex items-center justify-center">
+                          <span className="text-[10px] font-medium text-slate-300 uppercase tracking-widest">
+                            {isNow ? "Танаффус" : "—"}
+                          </span>
                         </div>
                       )}
                     </td>
