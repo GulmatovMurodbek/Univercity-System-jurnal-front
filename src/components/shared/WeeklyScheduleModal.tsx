@@ -33,6 +33,8 @@ interface Lesson {
   subjectId: string;
   teacherId: string;
   classroom: string;
+  department: string;
+  building: string;
   lessonType: "lecture" | "practice" | "lab";
   _id?: string;
 }
@@ -48,6 +50,7 @@ interface WeeklyScheduleModalProps {
   groupId: string;
   groupName: string;
   shift: 1 | 2;
+  semester: 1 | 2; // <-- Add semester
   subjects: Subject[];
   initialSchedule: { week: DaySchedule[] } | null;
   onSave: (schedule: any) => void;
@@ -81,6 +84,7 @@ export function WeeklyScheduleModal({
   groupId,
   groupName,
   shift,
+  semester, // <-- Destructure
   subjects,
   initialSchedule,
   onSave,
@@ -107,6 +111,8 @@ export function WeeklyScheduleModal({
             subjectId: lesson.subjectId?._id || lesson.subjectId || "",
             teacherId: lesson.teacherId?._id || lesson.teacherId || "",
             classroom: lesson.classroom || "",
+            department: lesson.department || "",
+            building: lesson.building || "",
             lessonType: lesson.lessonType || "lecture",
             _id: lesson._id
           }))
@@ -121,6 +127,8 @@ export function WeeklyScheduleModal({
               subjectId: "",
               teacherId: "",
               classroom: "",
+              department: "",
+              building: "",
               lessonType: "lecture",
             })),
           }))
@@ -147,6 +155,7 @@ export function WeeklyScheduleModal({
 
       const payload = {
         groupId,
+        semester, // <-- Include semester
         week: schedule.map((d => ({
           day: d.day,
           lessons: d.lessons.map(l => ({
@@ -154,6 +163,8 @@ export function WeeklyScheduleModal({
             subjectId: l.subjectId || null,
             teacherId: l.teacherId || null,
             classroom: l.classroom,
+            department: l.department,
+            building: l.building,
             lessonType: l.lessonType,
           })),
         }))),
@@ -196,6 +207,8 @@ export function WeeklyScheduleModal({
                       subjectId: "",
                       teacherId: "",
                       classroom: "",
+                      department: "",
+                      building: "",
                       lessonType: "lecture",
                     };
 
@@ -257,6 +270,18 @@ export function WeeklyScheduleModal({
                             className="h-10"
                             value={lesson.classroom}
                             onChange={(e) => updateLesson(dIdx, lIdx, "classroom", e.target.value)}
+                          />
+                          <Input
+                            placeholder="Кафедра"
+                            className="h-10"
+                            value={lesson.department}
+                            onChange={(e) => updateLesson(dIdx, lIdx, "department", e.target.value)}
+                          />
+                          <Input
+                            placeholder="Бино"
+                            className="h-10"
+                            value={lesson.building}
+                            onChange={(e) => updateLesson(dIdx, lIdx, "building", e.target.value)}
                           />
                         </div>
                       </td>

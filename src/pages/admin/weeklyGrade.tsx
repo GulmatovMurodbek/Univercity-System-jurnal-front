@@ -159,7 +159,7 @@ const StudentCard = memo(({ data, onClick }: { data: any, onClick: (s: any) => v
 });
 
 // 2. Memoized Student Modal
-const StudentModal = memo(({ student, subjectName, onClose }: { student: any, subjectName: string, onClose: () => void }) => {
+const StudentModal = memo(({ student, subjectName, subjectId, onClose }: { student: any, subjectName: string, subjectId: string | undefined, onClose: () => void }) => {
   if (!student) return null;
 
   const initials = getInitials(student.fullName);
@@ -220,42 +220,108 @@ const StudentModal = memo(({ student, subjectName, onClose }: { student: any, su
         <ScrollArea className="max-h-[50vh] px-8 pb-8">
           <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary" />
-            Таърихи пешрафт
+            Таърихи пешрафт (Муфассал)
           </h4>
           <div className="rounded-xl border bg-card/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b">
                 <tr>
-                  <th className="p-4 text-left font-semibold text-muted-foreground w-1/3">Ҳафта</th>
-                  <th className="p-4 text-center font-semibold text-muted-foreground">Баҳо</th>
-                  <th className="p-4 text-right font-semibold text-muted-foreground">Статус</th>
+                  <th className="p-4 text-left font-semibold text-muted-foreground w-20">Ҳафта</th>
+                  <th className="p-4 text-left font-semibold text-muted-foreground">Дарсҳо (Баҳоҳо)</th>
+                  <th className="p-4 text-center font-semibold text-muted-foreground w-32">Миёна</th>
+                  <th className="p-4 text-right font-semibold text-muted-foreground w-24">Статус</th>
                 </tr>
               </thead>
               <tbody>
-                {student.weeklyAverages.map((avg: number, i: number) => (
-                  <tr key={i} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                    <td className="p-4 font-medium">Ҳафтаи {i + 1}</td>
-                    <td className="p-4 text-center">
-                      {avg > 0 ? (
-                        <span className={cn("font-bold text-lg",
-                          avg >= 4.5 ? "text-emerald-600" :
-                            avg >= 3.5 ? "text-blue-600" :
-                              avg >= 3 ? "text-amber-600" : "text-rose-600"
-                        )}>{avg.toFixed(1)}</span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="p-4 text-right">
-                      {avg >= 4.5 ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0">Аъло</Badge> :
-                        avg >= 3.5 ? <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">Хуб</Badge> :
-                          avg >= 3 ? <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-0">Миёна</Badge> :
-                            avg > 0 ? <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-200 border-0">Бад</Badge> :
-                              <Badge variant="outline" className="text-muted-foreground border-dashed">Нест</Badge>
+                {Array.from({ length: 16 }).map((_, i) => {
+                  const weekNum = i + 1;
+
+                  const weekDays = student.gradesRaw?.filter((d: any) => d.weekNumber === weekNum) || [];
+                  const relevantLessons: any[] = [];
+
+                  // Collect relevant lessons
+                  weekDays.forEach((day: any) => {
+                    day.lessons.forEach((l: any) => {
+                      if (String(l.subjectId) === String(subjectId)) {
+                        relevantLessons.push(l);
                       }
-                    </td>
-                  </tr>
-                ))}
+                    });
+                  });
+
+                  // Calculate metrics for display
+                  let sum = 0;
+                  let count = 0;
+
+                  const lessonDisplays = relevantLessons.map((l, idx) => {
+                    if (l.lessonType === "lecture") {
+                      return (
+                        <Badge key={idx} variant="outline" className="bg-slate-50 text-slate-400 border-dashed">
+                          Лексия
+                        </Badge>
+                      );
+                    }
+
+                    const prep = l.preparationGrade !== null ? Number(l.preparationGrade) : 0;
+                    const task = l.taskGrade !== null ? Number(l.taskGrade) : 0;
+                    const val = (prep + task) / 2;
+
+                    // Add to sum
+                    sum += val;
+                    count++;
+
+                    const label = l.lessonType === "lab" ? "Лаб" : "Амалӣ";
+
+                    return (
+                      <div key={idx} className="flex flex-col items-center">
+                        <Badge className={cn("mb-1",
+                          val >= 4.5 ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" :
+                            val > 0 ? "bg-blue-100 text-blue-700 hover:bg-blue-200" :
+                              "bg-rose-100 text-rose-700 hover:bg-rose-200 border-rose-200"
+                        )}>
+                          {label}: {val}
+                        </Badge>
+                      </div>
+                    );
+                  });
+
+                  // Re-calculate average dynamically for display transparency
+                  const calculatedAvg = count > 0 ? sum / count : 0;
+
+                  return (
+                    <tr key={i} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                      <td className="p-4 font-medium whitespace-nowrap text-muted-foreground">Ҳафтаи {weekNum}</td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {lessonDisplays.length > 0 ? lessonDisplays : <span className="text-xs text-muted-foreground italic">Дарс набуд</span>}
+                        </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        {count > 0 ? (
+                          <div className="flex flex-col items-center">
+                            <span className={cn("font-bold text-lg",
+                              calculatedAvg >= 4.5 ? "text-emerald-600" :
+                                calculatedAvg >= 3.5 ? "text-blue-600" :
+                                  calculatedAvg >= 3 ? "text-amber-600" : "text-rose-600"
+                            )}>{calculatedAvg.toFixed(2)}</span>
+                            <span className="text-[10px] text-muted-foreground">({sum} / {count})</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-right">
+                        {count > 0 ? (
+                          calculatedAvg >= 4.5 ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0">Аъло</Badge> :
+                            calculatedAvg >= 3.5 ? <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">Хуб</Badge> :
+                              calculatedAvg >= 3 ? <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-0">Миёна</Badge> :
+                                <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-200 border-0">Бад</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground border-dashed bg-transparent">Нест</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -316,15 +382,14 @@ const WeeklyGradesList = memo(({ students, subjectId }: { students: any[], subje
                       if (l.lessonType === "lecture") return;
 
                       if (String(l.subjectId) === String(subjectId)) {
-                        const prep = l.preparationGrade ? Number(l.preparationGrade) : 0;
-                        const task = l.taskGrade ? Number(l.taskGrade) : 0;
+                        const prep = l.preparationGrade !== null && l.preparationGrade !== undefined ? Number(l.preparationGrade) : 0;
+                        const task = l.taskGrade !== null && l.taskGrade !== undefined ? Number(l.taskGrade) : 0;
 
-                        // ───────────────────────────────
-                        // ИСЛОҲИ АСОСӢ: ҲАМЕША ба 2 тақсим мекунем
+                        // ИСЛОҲИ АСОСӢ: ҲАМЕША ба 2 тақсим мекунем ва 0-ро ҳам қабул мекунем
                         const lessonGrade = (prep + task) / 2;
-                        // ───────────────────────────────
 
-                        if (lessonGrade > 0) gradesInWeek.push(lessonGrade);
+                        // Push grade (even if 0) to array for display
+                        gradesInWeek.push(lessonGrade);
                       }
                     });
                   });
@@ -333,7 +398,8 @@ const WeeklyGradesList = memo(({ students, subjectId }: { students: any[], subje
                     <div key={weekNum} className="flex flex-col p-3 rounded-lg bg-muted/30 border relative">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-[10px] uppercase text-muted-foreground font-bold">Ҳафтаи {weekNum}</span>
-                        {avg > 0 && (
+                        {/* Calculate weekly average for display */}
+                        {gradesInWeek.length > 0 && (
                           <Badge variant="outline" className={cn("text-[10px] h-5 px-1",
                             avg >= 4.5 ? "text-emerald-600 border-emerald-200 bg-emerald-50" :
                               avg >= 3.0 ? "text-blue-600 border-blue-200 bg-blue-50" : "text-rose-600 border-rose-200 bg-rose-50"
@@ -378,7 +444,19 @@ export default function AdminWeeklyGradePage() {
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<any | null>(null);
 
+  const [semester, setSemester] = useState<1 | 2>(1); // Default logic below
+
   const apiUrl = import.meta.env.VITE_API_URL;
+
+  // Initial semester set based on date
+  useEffect(() => {
+    const month = new Date().getMonth();
+    if (month >= 1 && month <= 5) {
+      setSemester(2);
+    } else {
+      setSemester(1);
+    }
+  }, []);
 
   useEffect(() => {
     axios.get(`${apiUrl}/groups`).then((res) => setGroups(res.data)).catch(console.error);
@@ -392,7 +470,10 @@ export default function AdminWeeklyGradePage() {
       const res = await axios.get(
         `${apiUrl}/journal/weekly-grades/${selectedGroup}`,
         {
-          params: { subjectId: selectedSubject || undefined },
+          params: {
+            subjectId: selectedSubject || undefined,
+            semester: semester // <-- Send semester
+          },
           headers: { Authorization: `Bearer ${token}` }
         }
       );
@@ -407,7 +488,7 @@ export default function AdminWeeklyGradePage() {
 
   useEffect(() => {
     if (selectedGroup) fetchData();
-  }, [selectedGroup, selectedSubject]);
+  }, [selectedGroup, selectedSubject, semester]); // <-- Re-fetch on semester change
 
   // OPTIMIZED CALCULATION
   const subjectStudent16Weeks = useMemo(() => {
@@ -420,6 +501,8 @@ export default function AdminWeeklyGradePage() {
     }
 
     return data.students.map((student) => {
+      // ... logic stays same ...
+      // Assuming 'grades' already reflects the fetched semester data
       const weeklySums = new Float32Array(16);
       const weeklyActualCounts = new Int8Array(16);
 
@@ -441,18 +524,25 @@ export default function AdminWeeklyGradePage() {
           if (lesson.lessonType === "lecture") continue;
 
           if (lesson.subjectId && String(lesson.subjectId) === String(selectedSubject)) {
-            const prep = lesson.preparationGrade ? Number(lesson.preparationGrade) : 0;
-            const task = lesson.taskGrade ? Number(lesson.taskGrade) : 0;
+            // Extract grades, treating active 0 as 0. Missing might be null.
+            const prep = lesson.preparationGrade !== null && lesson.preparationGrade !== undefined ? Number(lesson.preparationGrade) : 0;
+            const task = lesson.taskGrade !== null && lesson.taskGrade !== undefined ? Number(lesson.taskGrade) : 0;
 
-            // ───────────────────────────────
-            // ИСЛОҲИ АСОСӢ: ҲАМЕША ба 2 тақсим мекунем
+            // Use taskGrade if present, otherwise preparationGrade, or 0. max 5.
+            // Note: The previous logic was (prep + task) / 2.
+            // However, typically it's precedence or summation. 
+            // Given the user example "0+2+5+4", it implies single values per lesson.
+            // Let's preserve the existing (prep + task) / 2 logic IF that was intended, OR imply precedence.
+            // But wait, the previous code was: const lessonGrade = (prep + task) / 2;
+            // If the user puts 5 in prep and 0 in task, (5+0)/2 = 2.5? Maybe they want that.
+            // BUT usually in University system it's one grade per lesson. 
+            // I will stick to the previous (prep + task) / 2 but allow it to be 0.
+
             const lessonGrade = (prep + task) / 2;
-            // ───────────────────────────────
 
-            if (lessonGrade > 0) {
-              weeklySums[weekIndex] += lessonGrade;
-              weeklyActualCounts[weekIndex]++;
-            }
+            // CHANGE: Always count the lesson and add the grade (even if 0)
+            weeklySums[weekIndex] += lessonGrade;
+            weeklyActualCounts[weekIndex]++;
           }
         }
       }
@@ -471,12 +561,13 @@ export default function AdminWeeklyGradePage() {
         weeklyAverages,
         weeklyExpectedCounts: expectedCounts,
         totalAvg,
-        gradesRaw: grades // барои намоиши тафсилотӣ
+        gradesRaw: grades
       };
     });
-  }, [selectedSubject, data]);
+  }, [selectedSubject, data]); // data changes when semester changes
 
-  // Rest of component callbacks...
+  // ... rest ...
+
   const handleCardClick = React.useCallback((student: any) => {
     setSelectedStudentDetails(student);
   }, []);
@@ -486,10 +577,12 @@ export default function AdminWeeklyGradePage() {
   }, []);
 
   if (!selectedGroup) {
+    // ... same ...
     return (
       <DashboardLayout>
         <div className="min-h-screen flex items-center justify-center p-6">
           <Card className="w-full max-w-xl p-12 text-center shadow-2xl border-0">
+            {/* ... */}
             <GraduationCap className="w-24 h-24 mx-auto mb-8 text-primary" />
             <h1 className="text-3xl font-bold mb-4">Баҳоҳои ҳафтагӣ</h1>
             <p className="text-muted-foreground mb-8">Гурӯҳро интихоб кунед</p>
@@ -509,7 +602,7 @@ export default function AdminWeeklyGradePage() {
     )
   }
 
-  const currentSemesterName = new Date().getMonth() >= 8 || new Date().getMonth() < 1
+  const currentSemesterName = semester === 1
     ? "Семестри 1 (аз 1 сентябр)"
     : "Семестри 2 (аз 1 феврал)";
 
@@ -528,6 +621,27 @@ export default function AdminWeeklyGradePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border">
+              <button
+                onClick={() => setSemester(1)}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${semester === 1
+                  ? "bg-white text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                Семестри 1
+              </button>
+              <button
+                onClick={() => setSemester(2)}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${semester === 2
+                  ? "bg-white text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                Семестри 2
+              </button>
+            </div>
+
             <Select value={selectedGroup} onValueChange={setSelectedGroup}>
               <SelectTrigger className="w-64">
                 <SelectValue placeholder="Гурӯҳ" />
@@ -605,7 +719,8 @@ export default function AdminWeeklyGradePage() {
 
                   <StudentModal
                     student={selectedStudentDetails}
-                    subjectName={data.subjects.find((s) => s._id === selectedSubject)?.name || ""}
+                    subjectName={data?.subjects.find(s => s._id === selectedSubject)?.name || ""}
+                    subjectId={selectedSubject}
                     onClose={handleCloseModal}
                   />
                 </>

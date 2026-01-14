@@ -21,6 +21,7 @@ interface Group {
   _id: string;
   name: string;
   shift: number;
+  course: number;
 }
 type User = {
   role: "admin" | "teacher" | "student";
@@ -30,6 +31,7 @@ export default function WeeklySchedulePage() {
   const [selectedGroup, setSelectedGroup] = useState<string>("");
   const [selectedGroupName, setSelectedGroupName] = useState<string>("");
   const [shift, setShift] = useState<1 | 2>(1); // ← ДУРУСТ: useState!
+  const [semester, setSemester] = useState<1 | 2>(1); // Default to 1, or dynamic based on date
   const [weeklySchedule, setWeeklySchedule] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -38,6 +40,16 @@ export default function WeeklySchedulePage() {
     ? JSON.parse(localStorage.getItem("user") as string)
     : null;
   const apiUrl = import.meta.env.VITE_API_URL;
+
+  // Set initial semester based on date
+  useEffect(() => {
+    const month = new Date().getMonth(); // 0 = Jan, 1 = Feb, ...
+    if (month >= 1 && month <= 5) {
+      setSemester(2);
+    } else {
+      setSemester(1);
+    }
+  }, []);
 
   // Гирифтани гурӯҳҳо ва фанҳо
   useEffect(() => {
@@ -76,7 +88,9 @@ export default function WeeklySchedulePage() {
     setWeeklySchedule(null);
 
     axios
-      .get(`${apiUrl}/weeklySchedule/group/${selectedGroup}`)
+      .get(`${apiUrl}/weeklySchedule/group/${selectedGroup}`, {
+        params: { semester }
+      })
       .then((res) => {
         setWeeklySchedule(res.data);
       })
@@ -87,7 +101,7 @@ export default function WeeklySchedulePage() {
       .finally(() => {
         setLoading(false);
       });
-  }, [selectedGroup, groups]); // ← Ҳар дафъа groupId ё groups тағйир ёбад
+  }, [selectedGroup, groups, semester]); // ← Ҳар дафъа groupId ё groups ё semester тағйир ёбад
 
   const handleGroupChange = (groupId: string) => {
     setSelectedGroup(groupId);
@@ -132,55 +146,94 @@ export default function WeeklySchedulePage() {
 
         {/* Toolbar */}
         <Card className="border-0 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-6 items-center justify-between">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full sm:w-auto">
-                <div className="flex items-center gap-3">
-                  <Users className="w-6 h-6 text-primary" />
-                  <Select value={selectedGroup} onValueChange={handleGroupChange}>
-                    <SelectTrigger className="w-full sm:w-80 text-lg">
-                      <SelectValue placeholder="Гурӯҳро интихоб кунед" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ALL">
-                        <div className="flex items-center gap-3 font-bold text-primary">
-                          <Users className="w-5 h-5" />
-                          Ҳамаи гурӯҳҳо
-                        </div>
-                      </SelectItem>
-                      {groups.map((g) => (
-                        <SelectItem key={g._id} value={g._id}>
-                          <div className="flex items-center justify-between w-full text-[14px]">
-                            <span >{g.name.slice(0, 25)}...</span>
-                            <Badge variant="outline" className="ml-4">
-                              Басти {g.shift}
-                            </Badge>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col xl:flex-row gap-4 xl:items-center justify-between">
+
+              {/* Scrollable Filters Section */}
+              <div className="w-full overflow-x-auto pb-2 xl:pb-0 no-scrollbar">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center min-w-max xl:min-w-0">
+                  <div className="flex items-center gap-3">
+                    <Users className="w-6 h-6 text-primary shrink-0" />
+                    <Select value={selectedGroup} onValueChange={handleGroupChange}>
+                      <SelectTrigger className="w-[300px] sm:w-[320px] lg:w-[400px] h-12 text-lg px-4 shadow-sm bg-white">
+                        <span className="truncate w-full text-left">
+                          {selectedGroupName || <span className="text-muted-foreground">Гурӯҳро интихоб кунед</span>}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] overflow-y-auto">
+                        <SelectItem value="ALL">
+                          <div className="flex items-center gap-3 font-bold text-primary">
+                            <Users className="w-5 h-5" />
+                            Ҳамаи гурӯҳҳо
                           </div>
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                        {groups.map((g) => (
+                          <SelectItem key={g._id} value={g._id} className="cursor-pointer py-3">
+                            <div className="flex flex-col gap-1 w-full max-w-[320px]">
+                              <span className="font-medium truncate text-base" title={g.name}>
+                                {g.name}
+                              </span>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Badge variant="outline" className="text-[10px] px-2 h-5">
+                                  Курси {g.course}
+                                </Badge>
+                                <Badge variant="secondary" className="text-[10px] px-2 h-5">
+                                  Басти {g.shift}
+                                </Badge>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                {selectedGroup && (
-                  <div className="flex items-center gap-3">
-                    <Badge variant="secondary" className="text-[10px] px-4 py-2">
-                      <CalendarDays className="w-5 h-5 mr-2" />
-                      {selectedGroupName}
-                    </Badge>
-                    <Badge variant={shift === 1 ? "default" : "secondary"}>
-                      Смена {shift}
-                    </Badge>
+                    {/* Semester Selector */}
+                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border shrink-0">
+                      <button
+                        onClick={() => setSemester(1)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${semester === 1
+                          ? "bg-white text-primary shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                          }`}
+                      >
+                        Сем 1
+                      </button>
+                      <button
+                        onClick={() => setSemester(2)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${semester === 2
+                          ? "bg-white text-primary shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                          }`}
+                      >
+                        Сем 2
+                      </button>
+                    </div>
                   </div>
-                )}
+
+                  {selectedGroup && (
+                    <div className="flex items-center gap-3">
+                      <Badge variant="secondary" className="text-[10px] px-4 py-2 whitespace-nowrap">
+                        <CalendarDays className="w-5 h-5 mr-2" />
+                        {selectedGroupName}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] px-4 py-2 border-primary/20 bg-primary/5 text-primary whitespace-nowrap">
+                        Курси {groups.find(g => g._id === selectedGroup)?.course || 1}
+                      </Badge>
+                      <Badge variant={shift === 1 ? "default" : "secondary"} className="whitespace-nowrap">
+                        Смена {shift}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
               </div>
+
               {user?.role == "admin" ?
                 (
                   <Button
                     size="lg"
                     onClick={() => setModalOpen(true)}
                     disabled={!selectedGroup}
-                    className="shadow-xl"
+                    className="shadow-xl shrink-0 w-full xl:w-auto mt-2 xl:mt-0"
                   >
                     <Edit3 className="w-5 h-5 mr-3" />
                     Таҳрир кардан
@@ -251,8 +304,12 @@ export default function WeeklySchedulePage() {
               <h2 className="text-4xl font-bold text-gray-800">
                 Ҷадвали гурӯҳи <span className="text-primary">{selectedGroupName}</span>
               </h2>
-              <p className="text-xl text-muted-foreground mt-3">
-                Смена {shift} • Душанбе – Шанбе
+              <p className="text-xl text-muted-foreground mt-3 flex items-center justify-center gap-3">
+                <span>Курси {groups.find(g => g._id === selectedGroup)?.course}</span>
+                <span>•</span>
+                <span>Смена {shift}</span>
+                <span>•</span>
+                <span>Душанбе – Шанбе</span>
               </p>
             </div>
 
@@ -270,6 +327,7 @@ export default function WeeklySchedulePage() {
           groupId={selectedGroup}
           groupName={selectedGroupName}
           shift={shift}
+          semester={semester} // <-- Pass semester
           subjects={subjects}
           initialSchedule={weeklySchedule}
           onSave={setWeeklySchedule}

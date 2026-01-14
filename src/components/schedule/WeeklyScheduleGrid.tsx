@@ -3,13 +3,15 @@ import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Clock, User, MapPin } from 'lucide-react';
+import { Clock, User, MapPin, Building2, School, DoorOpen } from 'lucide-react';
 
 interface PopulatedLesson {
   time: string;
   subjectId: { name: string };
   teacherId: { fullName: string };
   classroom: string;
+  department: string;
+  building: string;
   lessonType: "lecture" | "practice" | "lab";
 }
 
@@ -132,7 +134,7 @@ export const WeeklyScheduleGrid = React.memo(({
                     <td
                       key={dayIdx + time}
                       className={cn(
-                        "p-2 align-top h-32 transition-colors",
+                        "p-2 align-top h-auto min-h-[14rem] transition-colors",
                         isNow && "bg-primary/[0.03]"
                       )}
                     >
@@ -170,13 +172,35 @@ export const WeeklyScheduleGrid = React.memo(({
                           </div>
 
                           <div className="mt-auto pt-2 border-t border-black/5 space-y-1.5">
-                            <div className="flex items-center gap-2 text-[11px] opacity-80 font-medium">
-                              <User className="w-3 h-3 flex-shrink-0" />
+                            <div className="flex items-center gap-2 text-[11px] opacity-80 font-medium text-slate-700">
+                              <User className="w-3.5 h-3.5 flex-shrink-0 text-slate-500" />
                               <span className="truncate">{lesson.teacherId?.fullName}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] opacity-80 font-medium">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              <span>{lesson.classroom || '—'}</span>
+
+                            <div className="flex flex-col gap-1.5 pt-1">
+                              {/* Classroom */}
+                              <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                                <DoorOpen className="w-3.5 h-3.5 flex-shrink-0 text-indigo-500" />
+                                <span>Аудитория: {lesson.classroom || '—'}</span>
+                              </div>
+
+                              {/* Building */}
+                              {lesson.building && (
+                                <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                                  <Building2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />
+                                  <span className="truncate">{lesson.building}</span>
+                                </div>
+                              )}
+
+                              {/* Department */}
+                              {lesson.department && (
+                                <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+                                  <School className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
+                                  <span className="truncate line-clamp-1" title={lesson.department}>
+                                    {lesson.department}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -195,7 +219,7 @@ export const WeeklyScheduleGrid = React.memo(({
           </tbody>
         </table>
       </div>
-    </Card>
+    </Card >
   );
 });
 
