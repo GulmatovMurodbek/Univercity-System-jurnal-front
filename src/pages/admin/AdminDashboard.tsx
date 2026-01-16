@@ -51,19 +51,33 @@ export default function AdminDashboard() {
 
         // Танҳо length
         setStats({
-          totalStudents: studentsRes.data.length,
-          totalTeachers: teachersRes.data.length,
-          totalGroups: groupsRes.data.length,
-          totalSubjects: subjectsRes.data?.length || 0,
+          totalStudents: Array.isArray(studentsRes.data) ? studentsRes.data.length : 0,
+          totalTeachers: Array.isArray(teachersRes.data) ? teachersRes.data.length : 0,
+          totalGroups: Array.isArray(groupsRes.data) ? groupsRes.data.length : 0,
+          totalSubjects: Array.isArray(subjectsRes.data) ? subjectsRes.data.length : 0,
         });
 
         // Барои Навтарин донишҷӯён → танҳо 4 дона
-        setRecentStudents(studentsRes.data.slice(0, 4));
+        if (Array.isArray(studentsRes.data)) {
+          setRecentStudents(studentsRes.data.slice(0, 4));
+        } else {
+          console.warn("Unexpected students data format:", studentsRes.data);
+          setRecentStudents([]);
+        }
 
         // Барои Намуди гурӯҳҳо → 4 дона
-        const groupsWithCount = groupsRes.data.map((g: any) => ({
+        let groupsData = [];
+        if (Array.isArray(groupsRes.data)) {
+          groupsData = groupsRes.data;
+        } else {
+          console.warn("Unexpected groups data format:", groupsRes.data);
+        }
+
+        const studentsData = Array.isArray(studentsRes.data) ? studentsRes.data : [];
+
+        const groupsWithCount = groupsData.map((g: any) => ({
           ...g,
-          studentCount: studentsRes.data.filter(
+          studentCount: studentsData.filter(
             (s: any) => s.group === g._id
           ).length,
         }));
@@ -170,7 +184,7 @@ export default function AdminDashboard() {
               >
                 <div>
                   <p className="font-medium">{student.fullName}</p>
-                  
+
                 </div>
               </div>
             ))}
