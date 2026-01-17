@@ -54,6 +54,15 @@ export default function Groups() {
     getGroups();
   }, []);
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [courseFilter, setCourseFilter] = useState("all");
+
+  const filteredGroups = groups.filter((group: any) => {
+    const matchesSearch = group.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCourse = courseFilter === "all" || group.course.toString() === courseFilter;
+    return matchesSearch && matchesCourse;
+  });
+
   return (
     <DashboardLayout>
       {user?.role == "admin" ? (
@@ -69,6 +78,44 @@ export default function Groups() {
         />
       ) : null}
 
+      <div className="flex flex-col md:flex-row gap-4 my-6">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Ҷустуҷӯи гурӯҳ..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <svg
+            className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </div>
+
+        <select
+          value={courseFilter}
+          onChange={(e) => setCourseFilter(e.target.value)}
+          className="w-full md:w-48 px-3 py-2 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          <option value="all">Ҳамаи курсҳо</option>
+          <option value="1">Курси 1</option>
+          <option value="2">Курси 2</option>
+          <option value="3">Курси 3</option>
+          <option value="4">Курси 4</option>
+          <option value="5">Курси 5</option>
+        </select>
+      </div>
+
       <ModalAddGroup open={open} setOpen={setOpen} getGroups={getGroups} />
 
       <motion.div
@@ -76,7 +123,7 @@ export default function Groups() {
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
       >
-        {groups?.map((group, idx) => (
+        {filteredGroups?.map((group, idx) => (
           <motion.div
             key={group.id}
             initial={{ opacity: 0, y: 20 }}
@@ -129,13 +176,13 @@ export default function Groups() {
                     className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                   >
                     {user?.role == "admin" ? (
-                    <Link to={`/admin/journal/group/${group._id}`}>
+                      <Link to={`/admin/journal/group/${group._id}`}>
+                        <FileText className="w-4 h-4 mr-1" />
+                        Журнал
+                      </Link>) : <Link to={`/teacher/journal/group/${group._id}`}>
                       <FileText className="w-4 h-4 mr-1" />
                       Журнал
-                    </Link> ): <Link to={`/teacher/journal/group/${group._id}`}>
-                      <FileText className="w-4 h-4 mr-1" />
-                      Журнал
-                    </Link> }
+                    </Link>}
                   </Button>
                   {user?.role == "admin" ? (
                     <Button
@@ -148,18 +195,18 @@ export default function Groups() {
                     </Button>
                   ) : null}
                   {user?.role == "admin" ? (
-                  <Button
-                    onClick={() => {
-                      setSelectedGroup(group);
-                      setEditOpen(true);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Таҳрир
-                  </Button> ):null}
+                    <Button
+                      onClick={() => {
+                        setSelectedGroup(group);
+                        setEditOpen(true);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Таҳрир
+                    </Button>) : null}
                 </div>
               </CardContent>
             </Card>

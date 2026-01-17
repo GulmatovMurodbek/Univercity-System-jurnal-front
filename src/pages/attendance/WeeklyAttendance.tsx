@@ -54,6 +54,7 @@ interface AttendanceData {
 interface Group {
   _id: string;
   name: string;
+  course: number;
 }
 
 const getStatusStyle = (status: AttendanceStatus) => {
@@ -138,6 +139,11 @@ export default function WeeklyAttendancePage() {
   const [loading, setLoading] = useState(false);
   const [week, setWeek] = useState(1);
 
+  const [semester, setSemester] = useState(() => {
+    const now = new Date();
+    return (now.getMonth() >= 1 && now.getMonth() <= 5) ? 2 : 1;
+  });
+
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -150,7 +156,7 @@ export default function WeeklyAttendancePage() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `${apiUrl}/journal/weekly-attendance/${selectedGroup}?week=${week}`,
+        `${apiUrl}/journal/weekly-attendance/${selectedGroup}?week=${week}&semester=${semester}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setData(res.data);
@@ -163,16 +169,11 @@ export default function WeeklyAttendancePage() {
 
   useEffect(() => {
     if (selectedGroup) fetchData();
-  }, [selectedGroup, week]);
+  }, [selectedGroup, week, semester]);
 
   const stats = data ? calculateWeekStats(data.students) : null;
 
-  // Муайян кардани семестри ҷорӣ
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const secondSemesterStart = new Date(currentYear + 1, 1, 1); // 1 феврал
-  const isSecondSemester = now >= secondSemesterStart;
-  const currentSemesterName = isSecondSemester ? "Семестри 2 (аз 1 феврал)" : "Семестри 1 (аз 1 сентябр)";
+  const currentSemesterName = semester === 2 ? "Семестри 2 (аз 1 феврал)" : "Семестри 1 (аз 1 сентябр)";
 
   if (!selectedGroup) {
     return (
@@ -195,7 +196,7 @@ export default function WeeklyAttendancePage() {
               <SelectContent>
                 {groups.map((g) => (
                   <SelectItem key={g._id} value={g._id} className="text-base py-3">
-                    {g.name}
+                    {g.name} (Курси {g.course})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -211,56 +212,83 @@ export default function WeeklyAttendancePage() {
       <div className="min-h-screen bg-background">
         <div className="max-w-[1600px] mx-auto p-6 space-y-6">
           {/* Header */}
-          <Card className="overflow-hidden border-0 shadow-elegant animate-fade-in">
-            <div className="gradient-header p-6 text-primary-foreground">
+          <Card className="border-0 shadow-sm bg-card">
+            <div className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-primary-foreground/20 backdrop-blur flex items-center justify-center">
-                    <BookOpen className="w-7 h-7" />
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="w-7 h-7 text-primary" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold">
+                    <h1 className="text-2xl font-bold text-foreground">
                       {data?.groupName || "Гурӯҳ"} — {currentSemesterName}
                     </h1>
-                    <p className="text-primary-foreground/80">
+                    <p className="text-muted-foreground">
                       Ҳафтаи {data?.weekNumber || week} ({data?.weekStart} — {data?.weekEnd})
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 w-full lg:w-auto">
+                  <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border self-start sm:self-auto">
+                    <button
+                      onClick={() => {
+                        setSemester(1);
+                        setWeek(1);
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${semester === 1
+                        ? "bg-white text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-white/50"
+                        }`}
+                    >
+                      Сем 1
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSemester(2);
+                        setWeek(1);
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${semester === 2
+                        ? "bg-white text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-white/50"
+                        }`}
+                    >
+                      Сем 2
+                    </button>
+                  </div>
+
                   <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                    <SelectTrigger className="w-56 bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground">
-                      <SelectValue />
+                    <SelectTrigger className="w-full sm:w-56 order-3 sm:order-none">
+                      <SelectValue placeholder="Гурӯҳ" />
                     </SelectTrigger>
                     <SelectContent>
                       {groups.map((g) => (
                         <SelectItem key={g._id} value={g._id}>
-                          {g.name}
+                          {g.name} (Курси {g.course})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
-                  <div className="flex items-center gap-1 bg-white rounded-full px-2 py-1.5 shadow-lg">
+                  <div className="flex items-center gap-1 bg-white border rounded-full px-2 py-1.5 shadow-sm ml-auto sm:ml-0">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-gray-500 hover:bg-gray-100 h-8 w-8 rounded-full"
+                      className="text-muted-foreground hover:bg-secondary h-8 w-8 rounded-full"
                       onClick={() => setWeek((w) => (w <= 1 ? 16 : w - 1))}
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
                     <div className="flex items-center gap-2 px-3">
-                      <CalendarDays className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700 min-w-[80px] text-center">
+                      <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground min-w-[80px] text-center">
                         Ҳафтаи {data?.weekNumber || week}
                       </span>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-gray-500 hover:bg-gray-100 h-8 w-8 rounded-full"
+                      className="text-muted-foreground hover:bg-secondary h-8 w-8 rounded-full"
                       onClick={() => setWeek((w) => (w >= 16 ? 1 : w + 1))}
                     >
                       <ChevronRight className="w-4 h-4" />
@@ -388,7 +416,7 @@ export default function WeeklyAttendancePage() {
                   <tbody>
                     {data?.students.map((student, studentIdx) => {
                       const weekAbsentCount = calculateStudentAbsencesInWeek(student);
-                      
+
                       return (
                         <tr
                           key={student._id}

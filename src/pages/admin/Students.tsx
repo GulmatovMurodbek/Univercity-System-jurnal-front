@@ -44,11 +44,26 @@ const Info = ({ label, value }: { label: string; value: any }) => (
   </div>
 );
 export default function Students() {
+  /* State for Pagination & Data */
   const [groups, setGroups] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [currentPage, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  /* Modal State */
   const [editOpen, setEditOpen] = useState(false);
-  const [viewOpen, setViewOpen] = useState(false); // ← НАВИН: модалкаи дидан
+  const [viewOpen, setViewOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [open, setOpen] = useState(false);
+
+  /* Filters */
+  const [searchQuery, setSearchQuery] = useState("");
+  // Course/Group filters temporarily disabled at API level, but UI kept. 
+  // Ideally should pass to API. For now we only pass search.
+  const [selectedCourse, setSelectedCourse] = useState<string>("all");
+  const [selectedGroup, setSelectedGroup] = useState<string>("all");
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -62,11 +77,24 @@ export default function Students() {
   };
 
   const getStudents = async () => {
+    setLoading(true);
     try {
-      const { data } = await axios.get(`${apiUrl}/students`);
-      setStudents(data);
+      // Pass pagination and search params
+      const { data } = await axios.get(`${apiUrl}/students`, {
+        params: {
+          page: currentPage,
+          limit: 10,
+          search: searchQuery
+        }
+      });
+
+      setStudents(data.students || []);
+      setTotalStudents(data.total || 0);
+      setTotalPages(data.pages || 1);
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,26 +109,29 @@ export default function Students() {
     }
   };
 
+  // Debounce search? Or just fetch on effect
   useEffect(() => {
     getGroups();
-    getStudents();
   }, []);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState<string>("all");
-  const [selectedGroup, setSelectedGroup] = useState<string>("all");
-  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    // Reset to page 1 if search changes
+    // But this effect runs on page change too. 
+    // If search changed, we should probably setPage(1). 
+    // Let's do a separate effect for search reset if needed, or just let user navigate.
+    // Better: If search changes, setPage(1) manually in input handler?
+    // For now, simpler: Just fetch.
+    const timer = setTimeout(() => {
+      getStudents();
+    }, 300); // 300ms debounce
+    return () => clearTimeout(timer);
+  }, [currentPage, searchQuery]);
 
-  const filteredStudents = students.filter((student) => {
-    const matchesSearch = student.fullName
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesCourse =
-      selectedCourse === "all" || student.course === parseInt(selectedCourse);
-    const matchesGroup =
-      selectedGroup === "all" || student.group?._id === selectedGroup;
-    return matchesSearch && matchesCourse && matchesGroup;
-  });
+  // Handle Search Input Change separately to reset page
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on new search
+  };
 
   return (
     <DashboardLayout>
@@ -136,7 +167,7 @@ export default function Students() {
                 <Input
                   placeholder="Ҷустуҷӯ аз рӯи ном..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchChange}
                   className="pl-10"
                 />
               </div>
@@ -197,7 +228,7 @@ export default function Students() {
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.map((student) => (
+                {students.map((student) => (
                   <tr
                     key={student._id}
                     className="border-b border-border/30 hover:bg-secondary/20 transition-colors"
@@ -219,7 +250,7 @@ export default function Students() {
                     </td>
                     <td className="p-4">
                       <Badge variant="secondary" className="font-medium">
-                        {student.groupId || "Номуайян"}
+                        {student.group?.name || "Номуайян"}
                       </Badge>
                     </td>
                     <td className="p-4 text-center">
@@ -284,16 +315,47 @@ export default function Students() {
           </div>
 
           {/* Pagination */}
-          <div className="p-4 border-t border-border/50 flex items-center justify-between">
+          <div className="p-4 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              Нишон додани {filteredStudents.length} аз {students.length}{" "}
-              донишҷӯ
+              Саҳифаи <span className="font-medium text-foreground">{currentPage}</span> аз{" "}
+              <span className="font-medium text-foreground">{totalPages}</span> (Ҷамъ: {totalStudents} донишҷӯ)
             </p>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
                 Пешта
               </Button>
-              <Button variant="outline" size="sm">
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pNum = i + 1;
+                  if (totalPages > 5 && currentPage > 3) {
+                    pNum = currentPage - 2 + i;
+                    if (pNum > totalPages) pNum = totalPages - (4 - i);
+                  }
+
+                  return (
+                    <Button
+                      key={i}
+                      variant={currentPage === pNum ? "default" : "ghost"}
+                      size="sm"
+                      className="w-8 h-8 p-0"
+                      onClick={() => setPage(pNum)}
+                    >
+                      {pNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
                 Баъдӣ
               </Button>
             </div>
@@ -313,103 +375,103 @@ export default function Students() {
       {/* НАВИН: Модалкаи дидани маълумот */}
       {/* НАВИН: Модалкаи дидани маълумот бо парол */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-  <DialogContent className="max-w-2xl p-5">
-    <DialogHeader>
-      <DialogTitle className="text-xl font-semibold flex items-center gap-3">
-        <Avatar className="w-12 h-12">
-          <AvatarFallback className="text-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
-            {selectedStudent?.fullName?.charAt(0)?.toUpperCase() || "С"}
-          </AvatarFallback>
-        </Avatar>
-        Маълумоти донишҷӯ
-      </DialogTitle>
-      <DialogDescription className="text-sm">
-        Маълумоти пурра дар бораи {selectedStudent?.fullName}
-      </DialogDescription>
-    </DialogHeader>
+        <DialogContent className="max-w-2xl p-5">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold flex items-center gap-3">
+              <Avatar className="w-12 h-12">
+                <AvatarFallback className="text-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                  {selectedStudent?.fullName?.charAt(0)?.toUpperCase() || "С"}
+                </AvatarFallback>
+              </Avatar>
+              Маълумоти донишҷӯ
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              Маълумоти пурра дар бораи {selectedStudent?.fullName}
+            </DialogDescription>
+          </DialogHeader>
 
-    {selectedStudent && (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-        {/* Чап */}
-        <div className="space-y-4">
-          <Info label="Ному насаб" value={selectedStudent.fullName} />
-          <Info label="Email" value={selectedStudent.email} />
-          
-          <div>
-            <Label className="text-xs text-muted-foreground">Парол (hash)</Label>
-            <p className="text-xs font-mono break-all bg-muted p-2 rounded">
-              {selectedStudent.password}
-            </p>
-          </div>
+          {selectedStudent && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+              {/* Чап */}
+              <div className="space-y-4">
+                <Info label="Ному насаб" value={selectedStudent.fullName} />
+                <Info label="Email" value={selectedStudent.email} />
 
-          <Info label="Телефон" value={selectedStudent.phone || "—"} />
-          <Info
-            label="Санаи таваллуд"
-            value={selectedStudent.birthDate || "—"}
-          />
-        </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Парол (hash)</Label>
+                  <p className="text-xs font-mono break-all bg-muted p-2 rounded">
+                    {selectedStudent.password}
+                  </p>
+                </div>
 
-        {/* Рост */}
-        <div className="space-y-4">
-          <div>
-            <Label className="text-xs text-muted-foreground">Гурӯҳ</Label>
-            <Badge variant="secondary" className="mt-1">
-              {selectedStudent.group?.name || "Номуайян"}
-            </Badge>
-          </div>
+                <Info label="Телефон" value={selectedStudent.phone || "—"} />
+                <Info
+                  label="Санаи таваллуд"
+                  value={selectedStudent.birthDate || "—"}
+                />
+              </div>
 
-          <div>
-            <Label className="text-xs text-muted-foreground">Курс</Label>
-            <p className="text-lg font-semibold">
-              {selectedStudent.course} курс
-            </p>
-          </div>
+              {/* Рост */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Гурӯҳ</Label>
+                  <Badge variant="secondary" className="mt-1">
+                    {selectedStudent.group?.name || "Номуайян"}
+                  </Badge>
+                </div>
 
-          <div>
-            <Label className="text-xs text-muted-foreground">Ҳолат</Label>
-            <Badge
-              className={cn(
-                "mt-1",
-                selectedStudent.status === "active"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-gray-100 text-gray-600"
-              )}
+                <div>
+                  <Label className="text-xs text-muted-foreground">Курс</Label>
+                  <p className="text-lg font-semibold">
+                    {selectedStudent.course} курс
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Ҳолат</Label>
+                  <Badge
+                    className={cn(
+                      "mt-1",
+                      selectedStudent.status === "active"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-gray-100 text-gray-600"
+                    )}
+                  >
+                    {selectedStudent.status === "active" ? "Фаъол" : "Ғайрифаъол"}
+                  </Badge>
+                </div>
+
+                <Info
+                  label="Санаи бақайдгирӣ"
+                  value={new Date(selectedStudent.createdAt).toLocaleDateString("tg-TJ")}
+                />
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">ID</Label>
+                  <p className="text-xs font-mono bg-muted p-2 rounded break-all">
+                    {selectedStudent._id}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 mt-6">
+            <Button size="sm" variant="outline" onClick={() => setViewOpen(false)}>
+              Пӯшидан
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditOpen(true);
+                setViewOpen(false);
+              }}
             >
-              {selectedStudent.status === "active" ? "Фаъол" : "Ғайрифаъол"}
-            </Badge>
+              Таҳрир
+            </Button>
           </div>
-
-          <Info
-            label="Санаи бақайдгирӣ"
-            value={new Date(selectedStudent.createdAt).toLocaleDateString("tg-TJ")}
-          />
-
-          <div>
-            <Label className="text-xs text-muted-foreground">ID</Label>
-            <p className="text-xs font-mono bg-muted p-2 rounded break-all">
-              {selectedStudent._id}
-            </p>
-          </div>
-        </div>
-      </div>
-    )}
-
-    <div className="flex justify-end gap-2 mt-6">
-      <Button size="sm" variant="outline" onClick={() => setViewOpen(false)}>
-        Пӯшидан
-      </Button>
-      <Button
-        size="sm"
-        onClick={() => {
-          setEditOpen(true);
-          setViewOpen(false);
-        }}
-      >
-        Таҳрир
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
+        </DialogContent>
+      </Dialog>
 
     </DashboardLayout>
   );

@@ -21,7 +21,7 @@ interface GroupedNotes {
 }
 
 export default function AdminNotesPage() {
-  const [groups, setGroups] = useState<{ _id: string; name: string }[]>([]);
+  const [groups, setGroups] = useState<{ _id: string; name: string; course: number }[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>("");
   const [notes, setNotes] = useState<GroupedNotes>({});
   const [loading, setLoading] = useState(false);
@@ -74,7 +74,7 @@ export default function AdminNotesPage() {
               <SelectContent>
                 {groups.map((g) => (
                   <SelectItem key={g._id} value={g._id}>
-                    {g.name}
+                    {g.name} (Курси {g.course})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -106,7 +106,7 @@ export default function AdminNotesPage() {
             <SelectContent>
               {groups.map((g) => (
                 <SelectItem key={g._id} value={g._id}>
-                  {g.name}
+                  {g.name} (Курси {g.course})
                 </SelectItem>
               ))}
             </SelectContent>

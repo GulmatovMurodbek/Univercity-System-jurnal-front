@@ -79,7 +79,7 @@ export default function WeeklySchedulePage() {
     } else {
       const group = groups.find((g) => g._id === selectedGroup);
       if (group) {
-        setSelectedGroupName(group.name);
+        setSelectedGroupName(`${group.name} (Курси ${group.course})`);
         setShift(group.shift === 2 ? 2 : 1);
       }
     }

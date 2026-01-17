@@ -52,6 +52,7 @@ interface GradebookData {
 interface Group {
   _id: string;
   name: string;
+  course: number;
 }
 
 // --- HELPER FUNCTIONS ---
@@ -592,7 +593,9 @@ export default function AdminWeeklyGradePage() {
               </SelectTrigger>
               <SelectContent>
                 {groups.map((g) => (
-                  <SelectItem key={g._id} value={g._id}>{g.name}</SelectItem>
+                  <SelectItem key={g._id} value={g._id}>
+                    {g.name} (Курси {g.course})
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -648,7 +651,9 @@ export default function AdminWeeklyGradePage() {
               </SelectTrigger>
               <SelectContent>
                 {groups.map((g) => (
-                  <SelectItem key={g._id} value={g._id}>{g.name}</SelectItem>
+                  <SelectItem key={g._id} value={g._id}>
+                    {g.name} (Курси {g.course})
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
