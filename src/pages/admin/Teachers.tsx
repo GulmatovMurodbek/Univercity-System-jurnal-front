@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { UserPlus, Mail, Phone, BookOpen, Eye, Trash, RefreshCw } from "lucide-react";
+import { UserPlus, Mail, Phone, BookOpen, Eye, Trash, RefreshCw, Pen } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import axios from "axios";
 import AddTeacherModal from "@/components/shared/addTeacher";
 import ViewTeacherModal from "@/components/shared/ViewTeacherModal";
+import EditTeacherModal from "@/components/shared/EditTeacherModal";
 import { useToast } from "@/components/ui/use-toast";
 
 interface Teacher {
@@ -28,6 +29,10 @@ export default function Teachers() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [openAdd, setOpenAdd] = useState(false);
+
+  // Edit State
+  const [openEdit, setOpenEdit] = useState(false);
+  const [teacherToEdit, setTeacherToEdit] = useState<Teacher | null>(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -71,6 +76,26 @@ export default function Teachers() {
       toast({
         title: "Error adding teacher",
         description: err.response?.data?.message || "Failed to add teacher",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateTeacher = async (id: string, data: any) => {
+    try {
+      await axios.put(`${apiUrl}/teachers/${id}`, data, getAuthHeaders());
+      toast({
+        title: "Success",
+        description: "Teacher updated successfully",
+        variant: "default",
+      });
+      setOpenEdit(false);
+      getTeachers();
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Error updating teacher",
+        description: err.response?.data?.message || "Failed to update teacher",
         variant: "destructive",
       });
     }
@@ -128,6 +153,12 @@ export default function Teachers() {
         open={openAdd}
         onClose={() => setOpenAdd(false)}
         onSubmit={handleAddTeacher}
+      />
+      <EditTeacherModal
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        onSubmit={handleUpdateTeacher}
+        teacher={teacherToEdit}
       />
 
       {/* Search Bar */}
@@ -238,6 +269,18 @@ export default function Teachers() {
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors"
+                      onClick={() => {
+                        setTeacherToEdit(teacher);
+                        setOpenEdit(true);
+                      }}
+                    >
+                      <Pen className="w-4 h-4 mr-2" />
+                      Edit
                     </Button>
                     <Button
                       onClick={() => deleteTeacher(teacher._id)}

@@ -83,19 +83,19 @@ export function AddSubjectModal({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Subject</DialogTitle>
+          <DialogTitle>Иловаи фан</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           {/* Subject Name */}
           <div className="grid gap-1">
-            <Label>Name</Label>
+            <Label>Номи фан</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           {/* Credit Hours */}
           <div className="grid gap-1">
-            <Label>Credit Hours</Label>
+            <Label>Соатҳои кредитӣ</Label>
             <Input
               type="number"
               min={1}
@@ -107,7 +107,7 @@ export function AddSubjectModal({
 
           {/* Teachers Multi-Select */}
           <div className="grid gap-1">
-            <Label>Teachers</Label>
+            <Label>Устодон</Label>
             <div className="border rounded p-2 max-h-40 overflow-y-auto">
               {teachers.map((teacher) => (
                 <div key={teacher._id} className="flex items-center gap-2">
@@ -124,7 +124,7 @@ export function AddSubjectModal({
 
           {/* Classroom */}
           <div className="grid gap-1">
-            <Label>Classroom</Label>
+            <Label>Синфхона</Label>
             <Input
               value={classroom}
               onChange={(e) => setClassroom(e.target.value)}
@@ -135,7 +135,7 @@ export function AddSubjectModal({
         </div>
 
         <DialogFooter>
-          <Button onClick={handleAdd}>Add Subject</Button>
+          <Button onClick={handleAdd}>Илова кардан</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

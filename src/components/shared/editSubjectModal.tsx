@@ -80,17 +80,17 @@ export function EditSubjectModal({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-y-auto rounded-lg shadow-lg">
         <DialogHeader>
-          <DialogTitle>Edit Subject</DialogTitle>
+          <DialogTitle>Таҳрири фан</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="grid gap-1">
-            <Label>Name</Label>
+            <Label>Номи фан</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div className="grid gap-1">
-            <Label>Credit Hours</Label>
+            <Label>Соатҳои кредитӣ</Label>
             <Input
               type="number"
               min={1}
@@ -101,7 +101,7 @@ export function EditSubjectModal({
           </div>
 
           <div className="grid gap-1">
-            <Label>Classroom</Label>
+            <Label>Синфхона</Label>
             <Input
               value={classroom}
               onChange={(e) => setClassroom(e.target.value)}
@@ -109,7 +109,7 @@ export function EditSubjectModal({
           </div>
 
           <div className="grid gap-2">
-            <Label>Teachers</Label>
+            <Label>Устодон</Label>
             <div className="flex flex-wrap gap-2">
               {teachers.map((teacher) => (
                 <div key={teacher._id} className="flex items-center space-x-2">
@@ -134,9 +134,9 @@ export function EditSubjectModal({
 
         <DialogFooter className="flex justify-end space-x-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            Бекор кардан
           </Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={handleSave}>Сабт кардан</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

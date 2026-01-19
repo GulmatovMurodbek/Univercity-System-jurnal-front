@@ -58,7 +58,12 @@ export default function Subjects() {
   }
   async function getTeachers() {
     try {
-      let { data } = await axios.get(`${apiUrl}/teachers`);
+      const token = localStorage.getItem("token");
+      let { data } = await axios.get(`${apiUrl}/teachers`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setTeachers(data);
     } catch (error) {
       console.error(error);
@@ -87,13 +92,20 @@ export default function Subjects() {
     }
     getGroups()
   }, []);
+
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredSubjects = subjects.filter((subject: any) =>
+    subject.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
 
     <DashboardLayout>
       {user?.role == "admin" ? (
         <PageHeader
           title="Subjects"
-          description={`Managing ${subjects.length} subjects`}
+          description={`Showing ${filteredSubjects.length} of ${subjects.length} subjects`}
           actions={
             <Button onClick={() => setOpen(true)} variant="gradient">
               <PlusCircle className="w-4 h-4" />
@@ -102,12 +114,38 @@ export default function Subjects() {
           }
         />) : null}
 
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Ҷустуҷӯи фан..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 rounded-xl border bg-card shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+          />
+          <svg
+            className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </div>
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
       >
-        {subjects?.map((subject, idx) => (
+        {filteredSubjects?.map((subject: any, idx) => (
           <motion.div
             key={subject.id}
             initial={{ opacity: 0, y: 20 }}

@@ -10,6 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
+const Info = ({ label, value }: { label: string; value: any }) => (
+  <div>
+    <Label className="text-xs text-muted-foreground">{label}</Label>
+    <p className="text-sm font-medium">{value}</p>
+  </div>
+);
+
 export default function ViewTeacherModal({
   open,
   onClose,
@@ -97,9 +104,3 @@ export default function ViewTeacherModal({
   );
 }
 
-const Info = ({ label, value }: { label: string; value: any }) => (
-  <div>
-    <Label className="text-xs text-muted-foreground">{label}</Label>
-    <p className="text-sm font-medium">{value}</p>
-  </div>
-);

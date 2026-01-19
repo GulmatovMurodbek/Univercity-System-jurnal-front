@@ -1,29 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import axios from "axios";
 
 interface AddTeacherProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
 }
-const subjectsList = [
-  "Math",
-  "English",
-  "Physics",
-  "Chemistry",
-  "Programming",
-  "Frontend",
-  "Backend",
-];
 
 export default function AddTeacherModal({ open, onClose, onSubmit }: AddTeacherProps) {
+  const [subjectsList, setSubjectsList] = useState<any[]>([]);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -32,6 +25,23 @@ export default function AddTeacherModal({ open, onClose, onSubmit }: AddTeacherP
     dateOfBirth: "",
     subjects: [] as string[],
   });
+
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  useEffect(() => {
+    if (open) {
+      fetchSubjects();
+    }
+  }, [open]);
+
+  const fetchSubjects = async () => {
+    try {
+      const { data } = await axios.get(`${apiUrl}/subjects`);
+      setSubjectsList(data);
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+    }
+  };
 
   const handleChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -47,50 +57,50 @@ export default function AddTeacherModal({ open, onClose, onSubmit }: AddTeacherP
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Teacher</DialogTitle>
+          <DialogTitle>Иловаи устод</DialogTitle>
         </DialogHeader>
 
         {/* Full Name */}
         <div className="flex flex-col gap-2">
-          <Label>Full Name</Label>
+          <Label>Ному насаб</Label>
           <Input name="fullName" value={form.fullName} onChange={handleChange} />
         </div>
 
         {/* Email */}
         <div className="flex flex-col gap-2">
-          <Label>Email</Label>
+          <Label>Почтаи электронӣ</Label>
           <Input type="email" name="email" value={form.email} onChange={handleChange} />
         </div>
 
         {/* Password */}
         <div className="flex flex-col gap-2">
-          <Label>Password</Label>
+          <Label>Рамз</Label>
           <Input type="password" name="password" value={form.password} onChange={handleChange} />
         </div>
 
         {/* Phone */}
         <div className="flex flex-col gap-2">
-          <Label>Phone</Label>
+          <Label>Телефон</Label>
           <Input name="phone" value={form.phone} onChange={handleChange} />
         </div>
 
         {/* Date of Birth */}
         <div className="flex flex-col gap-2">
-          <Label>Date of Birth</Label>
+          <Label>Санаи таваллуд</Label>
           <Input type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={handleChange} />
         </div>
 
         {/* Subjects (Multiple) */}
         <div className="flex flex-col gap-2">
-          <Label>Subjects</Label>
+          <Label>Фанҳо</Label>
           <Select onValueChange={handleSelectSubject}>
             <SelectTrigger>
-              <SelectValue placeholder="Select subjects" />
+              <SelectValue placeholder="Фанҳоро интихоб кунед" />
             </SelectTrigger>
             <SelectContent>
-              {subjectsList.map((sub) => (
-                <SelectItem key={sub} value={sub}>
-                  {sub}
+              {subjectsList.map((sub: any) => (
+                <SelectItem key={sub._id || sub.name} value={sub.name}>
+                  {sub.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -109,7 +119,7 @@ export default function AddTeacherModal({ open, onClose, onSubmit }: AddTeacherP
             onClick={() => onSubmit(form)}
             className="w-full"
           >
-            Save Teacher
+            Сабт кардан
           </Button>
         </DialogFooter>
       </DialogContent>
