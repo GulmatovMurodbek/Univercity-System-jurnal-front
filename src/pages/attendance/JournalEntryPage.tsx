@@ -62,6 +62,7 @@ export default function JournalEntryPage() {
   const [groupName, setGroupName] = useState("Гурӯҳ");
   const [groupId, setGroupId] = useState<string>("");
   const [lessonType, setLessonType] = useState<"lecture" | "practice" | "lab">("practice");
+  const [topic, setTopic] = useState("");
 
   // Autocomplete search
   const [open, setOpen] = useState(false);
@@ -88,6 +89,7 @@ export default function JournalEntryPage() {
       setGroupName(data.groupId?.name || "Гурӯҳ");
       setGroupId(data.groupId?._id || "");
       setLessonType(data.lessonType || "practice");
+      setTopic(data.topic || "");
 
       setStudents(
         data.students.map((s: any) => ({
@@ -160,7 +162,7 @@ export default function JournalEntryPage() {
       const token = localStorage.getItem("token");
       await axios.put(
         `${apiUrl}/journal/${journalId}`,
-        { students },
+        { students, topic },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert("Журнал бомуваффақият сабт шуд!");
@@ -224,6 +226,16 @@ export default function JournalEntryPage() {
                   📚 Лексионӣ (Танҳо ҳозирӣ)
                 </Badge>
               )}
+            </div>
+
+            <div className="mt-6">
+              <label className="text-white/90 mb-2 block font-medium">Мавзӯи дарс (Topic)</label>
+              <Input
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="Мавзӯи имрӯзаро ворид кунед..."
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-12 text-lg focus:bg-white/20 transition-all"
+              />
             </div>
           </CardHeader>
         </Card>

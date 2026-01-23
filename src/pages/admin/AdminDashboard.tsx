@@ -23,16 +23,19 @@ import { format } from "date-fns";
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalStudents: 0,
-    totalTeachers: 0,
     totalGroups: 0,
-    totalSubjects: 0,
+    attendanceRate: 0,
+    avgGrade: 0,
   });
 
-  const [recentStudents, setRecentStudents] = useState<any[]>([]);
-  const [groupsOverview, setGroupsOverview] = useState<any[]>([]);
+  const [topGroups, setTopGroups] = useState<any[]>([]);
+  const [highAbsence, setHighAbsence] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const apiUrl = import.meta.env.VITE_API_URL;
+  // Use React Router for navigation
+  // import { useNavigate } from "react-router-dom"; // Need to ensure it's imported at top
+  // But wait, existing code doesn't import useNavigate. I need to add it.
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,49 +43,18 @@ export default function AdminDashboard() {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        // API-ҳои сода:
-        const [studentsRes, teachersRes, groupsRes, subjectsRes] =
-          await Promise.all([
-            axios.get(`${apiUrl}/students`, { headers }),
-            axios.get(`${apiUrl}/teachers`, { headers }),
-            axios.get(`${apiUrl}/groups`, { headers }),
-            axios.get(`${apiUrl}/subjects`, { headers }), // агар надорӣ → автомат 0 мешавад
-          ]);
+        const res = await axios.get(`${apiUrl}/analytics/dashboard`, { headers });
 
-        // Танҳо length
         setStats({
-          totalStudents: Array.isArray(studentsRes.data) ? studentsRes.data.length : 0,
-          totalTeachers: Array.isArray(teachersRes.data) ? teachersRes.data.length : 0,
-          totalGroups: Array.isArray(groupsRes.data) ? groupsRes.data.length : 0,
-          totalSubjects: Array.isArray(subjectsRes.data) ? subjectsRes.data.length : 0,
+          totalStudents: res.data.totalStudents || 0,
+          totalGroups: res.data.totalGroups || 0,
+          attendanceRate: res.data.attendanceRate || 0,
+          avgGrade: res.data.avgGrade || 0,
         });
 
-        // Барои Навтарин донишҷӯён → танҳо 4 дона
-        if (Array.isArray(studentsRes.data)) {
-          setRecentStudents(studentsRes.data.slice(0, 4));
-        } else {
-          console.warn("Unexpected students data format:", studentsRes.data);
-          setRecentStudents([]);
-        }
+        setTopGroups(res.data.topGroups || []);
+        setHighAbsence(res.data.highAbsenceStudents || []);
 
-        // Барои Намуди гурӯҳҳо → 4 дона
-        let groupsData = [];
-        if (Array.isArray(groupsRes.data)) {
-          groupsData = groupsRes.data;
-        } else {
-          console.warn("Unexpected groups data format:", groupsRes.data);
-        }
-
-        const studentsData = Array.isArray(studentsRes.data) ? studentsRes.data : [];
-
-        const groupsWithCount = groupsData.map((g: any) => ({
-          ...g,
-          studentCount: studentsData.filter(
-            (s: any) => s.group === g._id
-          ).length,
-        }));
-
-        setGroupsOverview(groupsWithCount.slice(0, 4));
       } catch (err) {
         console.error("Хатои Dashboard:", err);
       } finally {
@@ -112,20 +84,12 @@ export default function AdminDashboard() {
     <DashboardLayout>
       <PageHeader
         title="Панели Идоракунии Маъмур"
-        description="Намоиши умумии низоми донишгоҳ"
+        description="Таҳлили пешрафта ва нишондиҳандаҳои асосӣ"
         actions={
           <div className="flex gap-2 flex-wrap">
-            <Button variant="gradient" size="sm">
-              <UserPlus className="w-4 h-4" />
-              Доштани донишҷӯ
-            </Button>
-            <Button variant="outline" size="sm">
-              <FolderPlus className="w-4 h-4" />
-              Доштани гурӯҳ
-            </Button>
-            <Button variant="outline" size="sm">
-              <PlusCircle className="w-4 h-4" />
-              Доштани фан
+            <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/logs'}>
+              <FolderPlus className="w-4 h-4 mr-2" />
+              Амалҳои Система
             </Button>
           </div>
         }
@@ -141,24 +105,24 @@ export default function AdminDashboard() {
           color="primary"
         />
         <StatCard
-          title="Ҳамаги устодон"
-          value={stats.totalTeachers}
-          subtitle="Устодони фаъол"
+          title="Давомоти Миёна"
+          value={`${stats.attendanceRate}%`}
+          subtitle="Дар 30 рӯзи охир"
           icon={Users}
           color="info"
+        />
+        <StatCard
+          title="Баҳои Миёна"
+          value={stats.avgGrade}
+          subtitle="Дар сатҳи донишгоҳ"
+          icon={PlusCircle}
+          color="success"
         />
         <StatCard
           title="Ҳамаги гурӯҳҳо"
           value={stats.totalGroups}
           subtitle="Гурӯҳҳои академӣ"
           icon={Building2}
-          color="success"
-        />
-        <StatCard
-          title="Ҳамаги фанҳо"
-          value={stats.totalSubjects}
-          subtitle="Фанҳои дастрас"
-          icon={BookOpen}
           color="warning"
         />
       </div>
@@ -169,54 +133,64 @@ export default function AdminDashboard() {
         <GradeDistributionChart />
       </div>
 
-      {/* Навтарин + Гурӯҳҳо */}
+      {/* Навтарин + Гурӯҳҳо + High Absence */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Навтарин донишҷӯён */}
+
+        {/* Гурӯҳҳои фаъол */}
         <Card>
           <CardHeader className="flex justify-between">
-            <CardTitle>Навтарин донишҷӯён</CardTitle>
+            <CardTitle>Гурӯҳҳои фаъол (Top 5)</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentStudents.map((student) => (
-              <div
-                key={student._id}
-                className="p-3 bg-secondary/30 rounded-xl mb-2 flex justify-between"
-              >
-                <div>
-                  <p className="font-medium">{student.fullName}</p>
-
+            {topGroups.length === 0 ? <p className="text-muted-foreground p-4">Маълумот нест</p> :
+              topGroups.map((group) => (
+                <div
+                  key={group.name}
+                  className="p-3 bg-secondary/30 rounded-xl mb-2 flex justify-between"
+                >
+                  <div>
+                    <p className="font-medium">{group.name}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">{group.entryCount}</p>
+                    <p className="text-xs text-muted-foreground">Сабтҳо</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </CardContent>
         </Card>
 
-        {/* Намуди гурӯҳҳо */}
-        <Card>
-          <CardHeader className="flex justify-between">
-            <CardTitle>Намуди гурӯҳҳо</CardTitle>
+        {/* 🔴 High Absence Students */}
+        <Card className="border-red-100 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-red-600 flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Донишҷӯёни бо ғоибии зиёд ({">"}48)
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {groupsOverview.map((group) => (
-              <div
-                key={group._id}
-                className="p-3 bg-secondary/30 rounded-xl mb-2 flex justify-between"
-              >
-                <div>
-                  <p className="font-medium">{group.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {group.faculty ?? "Факултет нест"}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">{group.studentCount}</p>
-                  <p className="text-xs text-muted-foreground">Донишҷӯён</p>
-                </div>
+            {highAbsence.length === 0 ? (
+              <p className="text-muted-foreground p-4">Хушбахтона, чунин донишҷӯён нестанд</p>
+            ) : (
+              <div className="max-h-80 overflow-y-auto pr-2 space-y-2">
+                {highAbsence.map((st, i) => (
+                  <div key={i} className="flex justify-between items-center p-3 rounded-lg bg-red-50 border border-red-100">
+                    <div>
+                      <p className="font-bold text-slate-800">{st.studentName}</p>
+                      <p className="text-xs text-slate-500">{st.groupName}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-block bg-red-100 text-red-700 px-2 py-1 rounded text-sm font-bold">
+                        {st.absentCount}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

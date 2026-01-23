@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 🔁 Ҳангоми refresh
   useEffect(() => {
     const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
 
     if (!token) {
       setLoading(false);
@@ -44,17 +45,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ⏰ Token expired?
       if (decoded.exp * 1000 < Date.now()) {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setLoading(false);
         return;
       }
 
-      setUser({
-        id: decoded.id,
-        email: decoded.email,
-        role: decoded.role,
-      } as User);
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      } else {
+        // Fallback if user is missing but token exists (shouldn't happen often)
+        setUser({
+          id: decoded.id,
+          email: decoded.email,
+          role: decoded.role,
+        } as User);
+      }
     } catch {
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
     } finally {
       setLoading(false);
     }
@@ -62,11 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = ({ token, user }: { token: string; user: User }) => {
     localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
+    // Reload to ensure state is fresh across app if needed, though state update handles it
   };
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
   };
 

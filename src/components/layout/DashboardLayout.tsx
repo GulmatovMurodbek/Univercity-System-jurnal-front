@@ -40,6 +40,7 @@ const adminNavItems: NavItem[] = [
   { icon: CalendarDays, label: 'Баҳоҳои ҳафтаина', path: '/admin/grades/weekly' },
   { icon: MessageSquare, label: 'Эзоҳҳо', path: '/admin/noutes' },
   { icon: Calendar, label: 'Ҷадвали ҳафтаина', path: '/admin/schedule' },
+  { icon: ClipboardList, label: 'Амалҳои Система', path: '/admin/logs' },
   { icon: Settings, label: 'Танзимот', path: '/admin/settings' },
 ];
 
@@ -73,8 +74,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     user?.role === 'admin'
       ? adminNavItems
       : user?.role === 'teacher'
-      ? teacherNavItems
-      : studentNavItems;
+        ? teacherNavItems
+        : studentNavItems;
 
   const handleLogout = () => {
     logout();
@@ -93,7 +94,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col bg-card border-r border-border/50 transition-all duration-300 shadow-card',
+          'hidden lg:flex flex-col bg-card border-r border-border/50 transition-all duration-300 shadow-card sticky top-0 h-screen',
           isSidebarOpen ? 'w-64' : 'w-20'
         )}
       >
@@ -117,7 +118,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="text-muted-foreground"
           >
-            
+
             <ChevronLeft
               className={cn(
                 'w-5 h-5 transition-transform',
@@ -149,20 +150,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </ul>
         </nav>
 
-        {/* User Info */}
-        <div className="p-4 border-t border-border/50">
-         
+        {/* User Info & Logout */}
+        <div className="p-4 border-t border-border/50 bg-secondary/30 mt-auto">
           <Button
             variant="ghost"
             size={isSidebarOpen ? 'default' : 'icon'}
             onClick={handleLogout}
             className={cn(
-              'mt-3 text-muted-foreground hover:text-destructive',
-              isSidebarOpen ? 'w-full justify-start' : 'w-full'
+              'w-full group hover:bg-red-50 hover:text-red-600 transition-all duration-300',
+              isSidebarOpen ? 'justify-start px-4' : 'justify-center'
             )}
           >
-            <LogOut className="w-4 h-4" />
-            {isSidebarOpen && <span className="ml-2">Баромадан</span>}
+            <div className={cn(
+              "p-2 rounded-lg bg-red-100 text-red-500 group-hover:bg-red-200 group-hover:text-red-600 transition-colors",
+              isSidebarOpen ? "mr-3" : ""
+            )}>
+              <LogOut className="w-4 h-4" />
+            </div>
+
+            {isSidebarOpen && (
+              <span className="font-semibold text-slate-700 dark:text-slate-300 group-hover:text-red-700">Баромадан</span>
+            )}
           </Button>
         </div>
       </aside>

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { FileText, ArrowLeft, CalendarDays, Clock, User, UserPlus, Users, Lock } from "lucide-react";
+import { FileText, ArrowLeft, CalendarDays, Clock, User, UserPlus, Users, Lock, Trash2 } from "lucide-react";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
@@ -104,6 +104,25 @@ export default function JournalByGroupPage() {
     }
   };
 
+
+  const handleRemoveStudent = async (studentId: string) => {
+    if (!confirm("Оё шумо мутмаин ҳастед, ки ин донишҷӯро аз гурӯҳ хориҷ кардан мехоҳед?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${apiUrl}/groups/remove-student`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { groupId, studentId },
+      });
+
+      // Update UI locally
+      setStudents((prev) => prev.filter((s) => s._id !== studentId));
+    } catch (err) {
+      console.error("Хатогӣ ҳангоми хориҷ кардани донишҷӯ:", err);
+      alert("Хатогӣ рӯй дод. Лутфан такрор кунед.");
+    }
+  };
+
   useEffect(() => {
     if (groupId) {
       fetchLessonsForDate(selectedDate);
@@ -174,7 +193,16 @@ export default function JournalByGroupPage() {
                       onSelect={(d) => d && setSelectedDate(d)}
                       locale={ru}
                       className="rounded-2xl border-2 border-indigo-100"
-                      disabled={user?.role === "teacher" ? (date) => date > new Date() || date < new Date(new Date().setDate(new Date().getDate() - 30)) : undefined}
+                      disabled={user?.role === "teacher"
+                        ? (date) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const checkDate = new Date(date);
+                          checkDate.setHours(0, 0, 0, 0);
+                          return checkDate.getTime() !== today.getTime();
+                        }
+                        : undefined
+                      }
                     />
                     <div className="mt-6 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl text-center">
                       <p className="text-4xl font-bold text-indigo-700">
@@ -223,7 +251,7 @@ export default function JournalByGroupPage() {
                         {students.map((student) => (
                           <div
                             key={student._id}
-                            className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 hover:bg-muted/80 transition"
+                            className="group flex items-center gap-4 p-4 rounded-xl bg-muted/50 hover:bg-muted/80 transition relative"
                           >
                             <Avatar className="w-10 h-10">
                               <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold">
@@ -233,6 +261,17 @@ export default function JournalByGroupPage() {
                             <div className="flex-1">
                               <p className="font-semibold text-lg">{student.fullName}</p>
                             </div>
+                            {user?.role === "admin" && (
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleRemoveStudent(student._id)}
+                                title="Хориҷ кардан аз гурӯҳ"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </div>

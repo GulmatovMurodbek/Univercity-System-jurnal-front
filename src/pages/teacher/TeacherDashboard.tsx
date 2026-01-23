@@ -14,13 +14,15 @@ import {
   Building2,
   Award,
   CalendarDays,
+  Bell,
+  Search,
+  LogOut,
+  Settings
 } from "lucide-react";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { StatCard } from "@/components/shared/StatCard";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -32,8 +34,7 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const fullName = user?.name || "Муаллим";
-
+  const fullName = user?.fullName || user?.name || "Муаллим";
   const [data, setData] = useState({
     groups: [],
     subjects: [],
@@ -61,12 +62,7 @@ export default function TeacherDashboard() {
         });
       } catch (err) {
         console.error("Error fetching teacher data:", err);
-        setData({
-          groups: [],
-          subjects: [],
-          totalHours: 0,
-          todayLessons: [],
-        });
+        // Fallback or empty data
       } finally {
         setLoading(false);
       }
@@ -81,271 +77,256 @@ export default function TeacherDashboard() {
 
   const todayLessonsCount = data.todayLessons.length;
 
+  // New Date Formatting
+  const todayDate = new Date();
+  const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+  const formattedDate = todayDate.toLocaleDateString('tg-TJ', dateOptions); // Tajik locale if supported, else default
+
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-        <div className="max-w-7xl mx-auto space-y-10">
-          {/* Header */}
-          <PageHeader
-            title={`Салом, ${user?.fullName}`}
-            description="Назар ба ҷадвали дарсии шумо имрӯз"
-          />
+      <div className="min-h-screen bg-[#F3F4F6] dark:bg-slate-900 p-6 font-sans">
 
-          {/* Stats */}
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-40 rounded-3xl" />
-              ))}
+        {/* Top Navigation Bar */}
+        <header className="flex justify-between items-center mb-10">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Салом, {fullName} 👋</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 capitalize">{formattedDate}</p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="bg-white dark:bg-slate-800 p-2 rounded-full shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+              <Search className="w-5 h-5 text-slate-600 dark:text-slate-300" />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              <StatCard
-                title="Дарсҳои имрӯз"
-                value={todayLessonsCount.toString()}
-                subtitle="Ба нақша гирифташуда"
-                icon={CalendarDays}
-                color="primary"
-              />
-              <StatCard
-                title="Соатҳои ҳафтаина"
-                value={data.totalHours.toString()}
-                subtitle="Соат дар ин ҳафта"
-                icon={Clock}
-                color="info"
-              />
-              <StatCard
-                title="Гурӯҳҳои ман"
-                value={data.groups.length.toString()}
-                subtitle="Гурӯҳҳои фаъол"
-                icon={Users}
-                color="success"
-              />
-              <StatCard
-                title="Фанҳои ман"
-                value={data.subjects.length.toString()}
-                subtitle="Фанҳои таълимӣ"
-                icon={BookOpen}
-                color="warning"
-              />
+            <div className="bg-white dark:bg-slate-800 p-2 rounded-full shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition relative">
+              <Bell className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
             </div>
-          )}
+            <Avatar className="w-10 h-10 border-2 border-white shadow-md cursor-pointer" onClick={() => navigate('/teacher/profile')}>
+              <AvatarFallback className="bg-indigo-600 text-white font-bold">{fullName.charAt(0)}</AvatarFallback>
+            </Avatar>
+          </div>
+        </header>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            {/* Today's Schedule */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="lg:col-span-2"
-            >
-              <Card className="shadow-2xl border-0 overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white">
-                  <CardTitle className="text-3xl font-bold flex items-center gap-4">
-                    <Calendar className="w-10 h-10" />
-                    Ҷадвали имрӯз
-                  </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mt-4 text-white hover:bg-white/20"
-                    onClick={() => navigate("/teacher/schedule")}
-                  >
-                    Ҷадвали пурра
-                    <ChevronRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </CardHeader>
-                <CardContent className="pt-8">
-                  {loading ? (
-                    <div className="space-y-6">
-                      {[...Array(6)].map((_, i) => (
-                        <Skeleton key={i} className="h-28 rounded-3xl" />
-                      ))}
-                    </div>
-                  ) : data.todayLessons.length === 0 ? (
-                    <div className="text-center py-20">
-                      <Calendar className="w-20 h-20 mx-auto mb-6 text-muted-foreground/50" />
-                      <h3 className="text-2xl font-bold text-slate-600 dark:text-slate-300">
-                        Имрӯз дарс нест
-                      </h3>
-                      <p className="text-muted-foreground mt-3">
-                        Аз фаъолияти дигар истифода баред!
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {data.todayLessons.map((lesson: any, idx: number) => (
-                        <motion.div
-                          key={idx}
-                          initial={{ opacity: 0, x: -50 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                        >
-                          <Card
-                            className={cn(
-                              "overflow-hidden transition-all duration-500 hover:shadow-2xl",
-                              lesson.isCurrent
-                                ? "ring-4 ring-indigo-500 shadow-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-                                : "bg-white dark:bg-slate-800"
-                            )}
-                          >
-                            <div className="p-8">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-6">
-                                  <div
-                                    className={cn(
-                                      "w-20 h-20 rounded-3xl flex flex-col items-center justify-center text-3xl font-bold shadow-xl",
-                                      lesson.isCurrent ? "bg-white/30" : "bg-gradient-to-br from-indigo-100 to-purple-100"
-                                    )}
-                                  >
-                                    <span className="text-sm opacity-80">Дарс</span>
-                                    {lesson.lessonNumber || idx + 1}
-                                  </div>
-                                  <div>
-                                    <h3 className="text-2xl font-bold mb-2">{lesson.subject}</h3>
-                                    <div className="flex flex-wrap items-center gap-4 text-base">
-                                      <Badge variant={lesson.isCurrent ? "default" : "secondary"}>
-                                        <User className="w-4 h-4 mr-1" />
-                                        Гурӯҳ {lesson.group}
-                                      </Badge>
-                                      <Badge variant={lesson.isCurrent ? "default" : "outline"}>
-                                        <Building2 className="w-4 h-4 mr-1" />
-                                        Синф {lesson.classroom}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                </div>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                                <div className="text-right">
-                                  <p className="text-2xl font-bold mb-3">{lesson.time}</p>
-                                  {lesson.isCurrent && (
-                                    <Badge className="text-lg px-6 py-3 animate-pulse bg-white text-indigo-600">
-                                      Ҳозир
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </Card>
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
+          {/* Left Column (Stats & Schedule) */}
+          <div className="lg:col-span-8 space-y-8">
+
+            {/* Valid Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Daily Lessons */}
+              <Card className="border-none shadow-sm bg-white dark:bg-slate-800 hover:shadow-md transition-all cursor-default">
+                <CardContent className="p-5 flex flex-col items-center justify-center text-center h-full">
+                  <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-3 text-indigo-600 dark:text-indigo-400">
+                    <CalendarDays className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-slate-800 dark:text-white">{todayLessonsCount}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Дарсҳои имрӯз</p>
                 </CardContent>
               </Card>
-            </motion.div>
 
-            {/* Quick Actions + Профил */}
-            <div className="space-y-8">
-              {/* Quick Actions */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <Card className="shadow-2xl border-0">
-                  <CardHeader className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
-                    <CardTitle className="text-2xl flex items-center gap-3">
-                      <ClipboardCheck className="w-8 h-8" />
-                      Амалиётҳои зуд
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-5">
-                    <Button
-                      variant="default"
-                      size="lg"
-                      className="w-full justify-start text-lg py-8 shadow-xl"
-                      onClick={() => navigate("/teacher/attendance")}
-                    >
-                      <ClipboardCheck className="w-8 h-8 mr-5" />
-                      <div className="text-left">
-                        <p className="font-bold">Ҳузурӣ гирифтан</p>
-                        <p className="text-sm opacity-80 mt-1">Барои дарсҳои имрӯз</p>
-                      </div>
-                    </Button>
+              {/* Weekly Hours */}
+              <Card className="border-none shadow-sm bg-white dark:bg-slate-800 hover:shadow-md transition-all cursor-default">
+                <CardContent className="p-5 flex flex-col items-center justify-center text-center h-full">
+                  <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-3 text-blue-600 dark:text-blue-400">
+                    <Clock className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-slate-800 dark:text-white">{data.totalHours}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Соатҳои ҳафтаина</p>
+                </CardContent>
+              </Card>
 
-                    <Button
-                      variant="default"
-                      size="lg"
-                      className="w-full justify-start text-lg py-8 shadow-xl"
-                      onClick={() => navigate("/teacher/grades")}
-                    >
-                      <FileSpreadsheet className="w-8 h-8 mr-5" />
-                      <div className="text-left">
-                        <p className="font-bold">Баҳо гузоштан</p>
-                        <p className="text-sm opacity-80 mt-1">Навсозии баҳоҳо</p>
-                      </div>
-                    </Button>
+              {/* Active Groups */}
+              <Card className="border-none shadow-sm bg-white dark:bg-slate-800 hover:shadow-md transition-all cursor-default">
+                <CardContent className="p-5 flex flex-col items-center justify-center text-center h-full">
+                  <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-3 text-emerald-600 dark:text-emerald-400">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-slate-800 dark:text-white">{data.groups.length}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Гурӯҳҳои фаъол</p>
+                </CardContent>
+              </Card>
 
-                    <Button
-                      variant="default"
-                      size="lg"
-                      className="w-full justify-start text-lg py-8 shadow-xl"
-                      onClick={() => navigate("/teacher/groups")}
-                    >
-                      <Users className="w-8 h-8 mr-5" />
-                      <div className="text-left">
-                        <p className="font-bold">Гурӯҳҳои ман</p>
-                        <p className="text-sm opacity-80 mt-1">Рӯйхати гурӯҳҳо</p>
-                      </div>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Профили муаллим */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <Card className="shadow-2xl border-0 bg-gradient-to-br from-indigo-600 to-purple-700 text-white overflow-hidden">
-                  <CardContent className="p-8 relative">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-6 mb-8">
-                        <Avatar className="w-28 h-28 border-4 border-white/30">
-                          <AvatarFallback className="text-5xl font-bold bg-white/20">
-                            {fullName.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="text-3xl font-bold">{fullName}</h3>
-                          <p className="text-xl opacity-90 mt-2">{user?.faculty || "Факультет"}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-5 text-lg">
-                        <div className="flex justify-between items-center bg-white/10 rounded-2xl p-4">
-                          <span className="opacity-90">Фанҳо</span>
-                          <span className="font-bold text-xl">
-                            {data.subjects.length > 0 ? data.subjects.join(", ") : "—"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center bg-white/10 rounded-2xl p-4">
-                          <span className="opacity-90">Соат дар ҳафта</span>
-                          <span className="font-bold text-3xl">{data.totalHours}</span>
-                        </div>
-                        <div className="flex justify-between items-center bg-white/10 rounded-2xl p-4">
-                          <span className="opacity-90">Гурӯҳҳо</span>
-                          <span className="font-bold text-xl">{data.groups.length}</span>
-                        </div>
-                      </div>
-
-                      <Button
-                        variant="secondary"
-                        size="lg"
-                        className="w-full mt-8 bg-white/20 hover:bg-white/30 text-white border-white/30 text-xl py-7"
-                        onClick={() => navigate("/teacher/profile")}
-                      >
-                        <Award className="w-7 h-7 mr-3" />
-                        Дидани профил
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+              {/* Subjects */}
+              <Card className="border-none shadow-sm bg-white dark:bg-slate-800 hover:shadow-md transition-all cursor-default">
+                <CardContent className="p-5 flex flex-col items-center justify-center text-center h-full">
+                  <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mb-3 text-amber-600 dark:text-amber-400">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-slate-800 dark:text-white">{data.subjects.length}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Фанҳои таълимӣ</p>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Today's Schedule Section */}
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-indigo-600" />
+                  Ҷадвали имрӯз
+                </h2>
+                <Button variant="ghost" className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700" onClick={() => navigate("/teacher/schedule")}>
+                  Ҷадвали пурра <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {loading ? (
+                  [1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)
+                ) : data.todayLessons.length === 0 ? (
+                  <div className="bg-white dark:bg-slate-800 rounded-3xl p-10 text-center shadow-sm">
+                    <div className="w-20 h-20 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                      <Calendar className="w-10 h-10" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Имрӯз дарс нест</h3>
+                    <p className="text-slate-500 text-sm mt-2">Рӯзи хуб дошта бошед!</p>
+                  </div>
+                ) : (
+                  data.todayLessons.map((lesson: any, idx: number) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="group"
+                    >
+                      <div className={cn(
+                        "bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-transparent hover:border-indigo-100 hover:shadow-md transition-all flex items-center gap-5",
+                        lesson.isCurrent && "border-indigo-500 ring-2 ring-indigo-500/20"
+                      )}>
+                        {/* Time Slot */}
+                        <div className={cn(
+                          "flex-shrink-0 w-[80px] text-center rounded-xl py-3 px-1",
+                          lesson.isCurrent ? "bg-indigo-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                        )}>
+                          <span className="block text-xs uppercase opacity-70 mb-1">Дарс</span>
+                          <span className="block text-2xl font-bold leading-none">{lesson.lessonNumber}</span>
+                        </div>
+
+                        {/* Details */}
+                        <div className="flex-grow min-w-0">
+                          <div className="flex justify-between items-start">
+                            <h4 className="text-lg font-bold text-slate-800 dark:text-white truncate pr-2 group-hover:text-indigo-600 transition-colors">
+                              {lesson.subject}
+                            </h4>
+                            <Badge variant="outline" className="bg-slate-50 whitespace-nowrap">
+                              {lesson.time}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 mt-2 text-sm text-slate-500 dark:text-slate-400">
+                            <span className="flex items-center gap-1 bg-slate-50 dark:bg-slate-700/50 px-2 py-1 rounded-md">
+                              <Users className="w-3 h-3" /> {lesson.group}
+                            </span>
+                            <span className="flex items-center gap-1 bg-slate-50 dark:bg-slate-700/50 px-2 py-1 rounded-md">
+                              <Building2 className="w-3 h-3" /> Синфи {lesson.classroom}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action */}
+                        <div className="hidden sm:block">
+                          <Button size="icon" variant="ghost" className="rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
+                            <ChevronRight className="w-5 h-5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right Column (Profile & Quick Actions) */}
+          <div className="lg:col-span-4 space-y-8">
+
+            {/* New Profile Card Design */}
+            <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] text-white shadow-xl p-6">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10"></div>
+
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <div className="w-24 h-24 rounded-full border-4 border-white/30 p-1 mb-4">
+                  <Avatar className="w-full h-full">
+                    <AvatarFallback className="bg-white text-indigo-600 text-3xl font-bold">{fullName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </div>
+                <h2 className="text-2xl font-bold">{fullName}</h2>
+                <p className="text-indigo-100 text-sm mt-1 mb-6">{user?.faculty || "Факултети Номуайян"}</p>
+
+                <div className="w-full bg-white/10 rounded-2xl p-4 backdrop-blur-sm mb-6">
+                  <p className="text-xs text-indigo-200 uppercase tracking-widest mb-2 font-semibold">Маълумот</p>
+                  <div className="text-sm space-y-2 text-left">
+                    <div className="flex justify-between">
+                      <span className="opacity-80">Кафедра:</span>
+                      <span className="font-semibold">{(user as any)?.department || "Иттилоот"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="opacity-80">Статус:</span>
+                      <span className="font-semibold flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div> Фаъол
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <Button className="w-full bg-white text-indigo-600 hover:bg-indigo-50 font-bold h-12 rounded-xl transition shadow-lg" onClick={() => navigate("/teacher/profile")}>
+                  <User className="w-4 h-4 mr-2" /> Дидани Профил
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Actions List */}
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 ml-1">Амалиётҳои зуд</h3>
+              <div className="space-y-3">
+                <button
+                  onClick={() => navigate("/teacher/attendance")}
+                  className="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm hover:shadow-md transition flex items-center gap-4 group"
+                >
+                  <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <ClipboardCheck className="w-6 h-6" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <h4 className="font-bold text-slate-800 dark:text-white">Ҳузурӣ гирифтан</h4>
+                    <p className="text-xs text-slate-500">Барои дарсҳои имрӯз</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                </button>
+
+                <button
+                 
+                  className="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm hover:shadow-md transition flex items-center gap-4 group"
+                >
+                  <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <FileSpreadsheet className="w-6 h-6" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <h4 className="font-bold text-slate-800 dark:text-white">Баҳо гузоштан</h4>
+                    <p className="text-xs text-slate-500">Навсозии баҳоҳо</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                </button>
+
+                <button
+                  onClick={() => navigate("/teacher/groups")}
+                  className="w-full bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm hover:shadow-md transition flex items-center gap-4 group"
+                >
+                  <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-xl flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <h4 className="font-bold text-slate-800 dark:text-white">Гурӯҳҳои ман</h4>
+                    <p className="text-xs text-slate-500">Рӯйхати гурӯҳҳо</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-purple-500 transition-colors" />
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

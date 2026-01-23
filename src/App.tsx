@@ -39,6 +39,7 @@ import JournalEntryPage from "./pages/attendance/JournalEntryPage";
 import JournalByGroupPage from "./pages/attendance/DailyAttendance";
 import WeeklyGradePage from "./pages/admin/weeklyGrade";
 import AdminNotesPage from "./pages/admin/feedback";
+import Logs from "./pages/admin/Logs";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +113,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminNotesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/logs"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Logs />
           </ProtectedRoute>
         }
       />
