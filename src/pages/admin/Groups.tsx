@@ -142,7 +142,7 @@ export default function Groups() {
                 </div>
 
                 <h3 className="text-xl font-bold mb-1">
-                  {group.name} ({group.id}) ({group.shift})
+                  {group.name} ({group.shift})
                 </h3>
 
                 <p className="text-sm text-muted-foreground mb-4">

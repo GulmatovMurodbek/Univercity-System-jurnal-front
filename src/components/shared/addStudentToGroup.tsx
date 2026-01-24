@@ -42,33 +42,37 @@ export function AddStudentsToGroupModal({
   const apiUrl = import.meta.env.VITE_API_URL;
 
   // 🔥 1. API – танҳо як бор ҳангоми кушодани модал
-  const getAllStudents = async () => {
+  // 🔥 1. API – Fetch students with search query
+  const fetchStudents = async (query: string = "") => {
     try {
+      setLoading(true); // Optional: show loading state on list if needed, but we have a global loading state for add action.
+      // Can add a separate loading state for search if desired.
       const token = localStorage.getItem("token");
-      const res = await axios.get(`${apiUrl}/students`, {
+      // Use the newly implemented limit and search params
+      const res = await axios.get(`${apiUrl}/students?search=${query}&limit=50`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setStudents(res.data.students || res.data); 
+      setStudents(res.data.students || res.data || []);
     } catch (err) {
       console.error("Хатогӣ ҳангоми овардани студентҳо:", err);
-      alert("Хатогӣ дар хондани рӯйхати донишҷӯён");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // 🔥 2. Debounced Search Effect
   useEffect(() => {
-    if (open) getAllStudents();
-  }, [open]);
+    if (!open) return;
 
-  // 🔥 2. ФИЛТР – СИНХРОНӢ (бе async!)
-  const filteredStudents = useMemo(() => {
-    if (!search.trim()) return students;
+    const timer = setTimeout(() => {
+      fetchStudents(search);
+    }, 500); // 500ms debounce
 
-    return students.filter((s) =>
-      s.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase()) ||
-      s._id.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [search, students]);
+    return () => clearTimeout(timer);
+  }, [search, open]);
+
+  // Use students directly instead of filteredStudents
+  const filteredStudents = students;
 
   // 🔥 3. Интихоби студент
   const toggleStudent = (id: string) => {
