@@ -1,7 +1,7 @@
 // src/pages/attendance/JournalByGroupPage.tsx — НИҲОӢ ВА БО ҲИМОЯ
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, isWithinInterval, isToday } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { ru } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -47,7 +47,17 @@ export default function JournalByGroupPage() {
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const today = new Date();
-  const isToday = format(selectedDate, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
+
+  // Logic for Current Week Access
+  const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+  const weekEnd = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
+
+  const isDateInCurrentWeek = (date: Date) => {
+    return isWithinInterval(date, { start: weekStart, end: weekEnd });
+  };
+
+  const isSelectedDateInCurrentWeek = isDateInCurrentWeek(selectedDate);
+
 
   // Гирифтани дарсҳо барои рӯзи интихобшуда
   const fetchLessonsForDate = async (date: Date) => {
@@ -72,8 +82,8 @@ export default function JournalByGroupPage() {
         );
       }
 
-      // Агар рӯзи гузашта бошад — муаллим наметавонад кушояд
-      if (!isToday && user?.role === "teacher") {
+      // Агар ҳафтаи ҷорӣ набошад — муаллим наметавонад кушояд
+      if (!isDateInCurrentWeek(date) && user?.role === "teacher") {
         fetchedLessons = [];
       }
 
@@ -142,7 +152,8 @@ export default function JournalByGroupPage() {
   const canOpenJournal = (lesson: Lesson) => {
     if (user?.role === "admin") return true;
     if (user?.role === "teacher") {
-      return isToday && lesson.teacherId === user._id;
+      // Must be current week AND teacher's lesson
+      return isSelectedDateInCurrentWeek && lesson.teacherId === user._id;
     }
     return false;
   };
@@ -194,13 +205,7 @@ export default function JournalByGroupPage() {
                       locale={ru}
                       className="rounded-2xl border-2 border-indigo-100"
                       disabled={user?.role === "teacher"
-                        ? (date) => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          const checkDate = new Date(date);
-                          checkDate.setHours(0, 0, 0, 0);
-                          return checkDate.getTime() !== today.getTime();
-                        }
+                        ? (date) => !isDateInCurrentWeek(date)
                         : undefined
                       }
                     />
@@ -214,10 +219,10 @@ export default function JournalByGroupPage() {
                       <p className="text-sm text-indigo-500 font-medium">
                         {format(zonedDate, "EEEE", { locale: ru })}
                       </p>
-                      {!isToday && user?.role === "teacher" && (
+                      {!isSelectedDateInCurrentWeek && user?.role === "teacher" && (
                         <Badge variant="secondary" className="mt-4">
                           <Lock className="w-4 h-4 mr-2" />
-                          Фақат имрӯз дастрас аст
+                          Фақат ҳафтаи ҷорӣ дастрас аст
                         </Badge>
                       )}
                     </div>
