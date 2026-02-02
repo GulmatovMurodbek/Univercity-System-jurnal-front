@@ -17,6 +17,21 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Subject {
   _id: string;
@@ -77,6 +92,78 @@ const timeSlots = (shift: 1 | 2) =>
 
 const weekDaysEn = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const weekDaysTg = ["Дш", "Сш", "Чш", "Пш", "Ҷм", "Шб"];
+
+// Searchable Select Component
+const SearchableSelect = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between h-10 px-3 font-normal text-sm bg-white hover:bg-slate-50 border-slate-200"
+        >
+          <span className="truncate">
+            {value
+              ? options.find((option) => option.value === value)?.label
+              : placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-slate-500" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0 z-[100]" align="start" side="bottom">
+        <Command className="border rounded-md">
+          <CommandInput
+            placeholder={`Ҷустуҷӯ...`}
+            className="text-base"
+          />
+          <CommandList>
+            <CommandEmpty className="py-6 text-center text-sm text-slate-500">
+              Ниёфт нашуд.
+            </CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.label} // Use label for search filtering
+                  onSelect={() => {
+                    onChange(option.value); // Select allows re-selection roughly
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "cursor-pointer",
+                    value === option.value && "bg-slate-100"
+                  )}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4 text-indigo-600",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <span className="truncate">{option.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 export function WeeklyScheduleModal({
   open,
@@ -214,7 +301,7 @@ export function WeeklyScheduleModal({
 
                     return (
                       <td key={dIdx} className="p-3 border">
-                        <div className="space-y-3">
+                        <div className="space-y-3 min-w-[200px]">
                           {/* Намуди дарс */}
                           <Select
                             value={lesson.lessonType}
@@ -234,36 +321,21 @@ export function WeeklyScheduleModal({
                             </SelectContent>
                           </Select>
 
-                          {/* Фан */}
-                          <Select
+                          {/* Фан - Searchable */}
+                          <SearchableSelect
                             value={lesson.subjectId}
-                            onValueChange={(v) => updateLesson(dIdx, lIdx, "subjectId", v)}
-                          >
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Фан" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {subjects.map(s => (
-                                <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            onChange={(v) => updateLesson(dIdx, lIdx, "subjectId", v)}
+                            options={subjects.map(s => ({ value: s._id, label: s.name }))}
+                            placeholder="Фан"
+                          />
 
-                          <Select
+                          {/* Муаллим - Searchable */}
+                          <SearchableSelect
                             value={lesson.teacherId}
-                            onValueChange={(v) => updateLesson(dIdx, lIdx, "teacherId", v)}
-                          >
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Муаллим" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {teachers.map(t => (
-                                <SelectItem key={t._id} value={t._id}>
-                                  {t.fullName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            onChange={(v) => updateLesson(dIdx, lIdx, "teacherId", v)}
+                            options={teachers.map(t => ({ value: t._id, label: t.fullName }))}
+                            placeholder="Муаллим"
+                          />
 
                           <Input
                             placeholder="Синф"
