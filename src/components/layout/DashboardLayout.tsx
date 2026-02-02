@@ -19,6 +19,7 @@ import {
   Building2,
   MessageSquare,
   LockKeyhole,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ const adminNavItems: NavItem[] = [
   { icon: UserCircle, label: 'Муаллимон', path: '/admin/teachers' },
   { icon: BookOpen, label: 'Фанҳо', path: '/admin/subjects' },
   { icon: CalendarDays, label: 'Ҳозиршавии ҳафтаина', path: '/admin/attendance/weekly' },
+  { icon: AlertCircle, label: 'Дарсҳои Нашуда', path: '/admin/attendance/missing' },
   { icon: CalendarDays, label: 'Баҳоҳои ҳафтаина', path: '/admin/grades/weekly' },
   { icon: MessageSquare, label: 'Эзоҳҳо', path: '/admin/noutes' },
   { icon: Calendar, label: 'Ҷадвали ҳафтаина', path: '/admin/schedule' },

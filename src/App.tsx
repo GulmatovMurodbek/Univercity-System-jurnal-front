@@ -28,13 +28,13 @@ import MyGrades from "./pages/student/MyGrades";
 
 // Shared Pages
 import WeeklyAttendance from "./pages/attendance/WeeklyAttendance";
+import MissingAttendance from "./pages/admin/MissingAttendance";
 import GradeJournal from "./pages/grades/GradeJournal";
 import WeeklySchedule from "./pages/schedule/WeeklySchedule";
 
 // Profiles
 import StudentProfile from "./pages/profiles/StudentProfile";
 import TeacherProfile from "./pages/profiles/TeacherProfile";
-import { useEffect, useState } from "react";
 import JournalEntryPage from "./pages/attendance/JournalEntryPage";
 import JournalByGroupPage from "./pages/attendance/DailyAttendance";
 import WeeklyGradePage from "./pages/admin/weeklyGrade";
@@ -146,6 +146,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <WeeklyAttendance />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/attendance/missing"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <MissingAttendance />
           </ProtectedRoute>
         }
       />
@@ -355,7 +363,7 @@ function AppRoutes() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <ToastContainer /> {/* 💡 Илова мекунем */}
+      <ToastContainer /> 
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />
