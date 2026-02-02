@@ -78,7 +78,7 @@ export default function JournalByGroupPage() {
       // Агар муаллим бошад — фақат дарсҳои худ-ашро нишон медиҳем
       if (user?.role === "teacher") {
         fetchedLessons = fetchedLessons.filter(
-          (lesson: Lesson) => lesson.teacherId === user._id
+          (lesson: Lesson) => lesson.teacherId === (user._id || user.id)
         );
       }
 
@@ -153,7 +153,7 @@ export default function JournalByGroupPage() {
     if (user?.role === "admin") return true;
     if (user?.role === "teacher") {
       // Must be current week AND teacher's lesson
-      return isSelectedDateInCurrentWeek && lesson.teacherId === user._id;
+      return isSelectedDateInCurrentWeek && lesson.teacherId === (user._id || user.id);
     }
     return false;
   };
