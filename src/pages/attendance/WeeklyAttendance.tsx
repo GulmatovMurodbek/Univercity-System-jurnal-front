@@ -147,7 +147,8 @@ export default function WeeklyAttendancePage() {
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    axios.get(`${apiUrl}/groups`).then((res) => setGroups(res.data));
+    const token = localStorage.getItem("token");
+    axios.get(`${apiUrl}/groups`, { headers: { Authorization: `Bearer ${token}` } }).then((res) => setGroups(res.data));
   }, [apiUrl]);
 
   const fetchData = async () => {

@@ -11,6 +11,7 @@ import AddTeacherModal from "@/components/shared/addTeacher";
 import ViewTeacherModal from "@/components/shared/ViewTeacherModal";
 import EditTeacherModal from "@/components/shared/EditTeacherModal";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Teacher {
   _id: string;
@@ -20,9 +21,11 @@ interface Teacher {
   subjects: string[];
   dateOfBirth?: string;
   createdAt: string;
+  isDean?: boolean;
 }
 
 export default function Teachers() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [viewOpen, setViewOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
@@ -142,10 +145,12 @@ export default function Teachers() {
             <Button variant="outline" size="icon" onClick={getTeachers}>
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
-            <Button onClick={() => setOpenAdd(true)} variant="gradient">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Устод ворид кардан
-            </Button>
+            {user?.role === "admin" && (
+              <Button onClick={() => setOpenAdd(true)} variant="gradient">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Устод ворид кардан
+              </Button>
+            )}
           </div>
         }
       />
@@ -214,8 +219,13 @@ export default function Teachers() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold truncate text-lg">{teacher?.fullName}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
                         Teacher
+                        {teacher.isDean && (
+                          <Badge variant="default" className="bg-indigo-600 text-[10px] h-5 px-1.5">
+                            Dean
+                          </Badge>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -270,27 +280,31 @@ export default function Teachers() {
                       <Eye className="w-4 h-4 mr-2" />
                       View
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors"
-                      onClick={() => {
-                        setTeacherToEdit(teacher);
-                        setOpenEdit(true);
-                      }}
-                    >
-                      <Pen className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button
-                      onClick={() => deleteTeacher(teacher._id)}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
-                    >
-                      <Trash className="w-4 h-4 mr-2 text-red-500" />
-                      Delete
-                    </Button>
+                    {user?.role === "admin" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors"
+                        onClick={() => {
+                          setTeacherToEdit(teacher);
+                          setOpenEdit(true);
+                        }}
+                      >
+                        <Pen className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                    )}
+                    {user?.role === "admin" && (
+                      <Button
+                        onClick={() => deleteTeacher(teacher._id)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                      >
+                        <Trash className="w-4 h-4 mr-2 text-red-500" />
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

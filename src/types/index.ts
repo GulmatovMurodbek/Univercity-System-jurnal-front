@@ -1,4 +1,4 @@
-export type UserRole = 'student' | 'teacher' | 'admin';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'mudir';
 
 // src/types/user.ts — НИҲОӢ ВА ДУРУСТ
 export interface User {
@@ -14,6 +14,7 @@ export interface User {
   group?: string;
   subjects?: string[];
   gpa?: number;
+  isDean?: boolean;
 }
 export interface Subject {
   id: string;

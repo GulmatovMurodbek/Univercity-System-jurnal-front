@@ -95,24 +95,38 @@ const getInitials = (name: string) => {
 
 // 1. Memoized Student Card
 const StudentCard = memo(({ data, onClick }: { data: any, onClick: (s: any) => void }) => {
-  // Memoize internal derived values if needed, but styling is fast.
-  const gradientClass = useMemo(() => getGradient(data.totalAvg), [data.totalAvg]);
-  const shadowClass = useMemo(() => getShadow(data.totalAvg), [data.totalAvg]);
+  // Colors based on Total Score (max 200, or 100 per block)
+  // Let's assume >80% is green.
+  const percentage = (data.totalAvg / (data.block2Score > 0 ? 200 : 100)) * 100; // Rough valid estimate if block 2 exists
+
+  // Use a simple heuristic: 
+  // Excellent: > 180 (or >90 in block)
+  // Good: > 140
+  // Pass: > 100
+  // Fail: < 100
+  // However, `data.totalAvg` might be small if semester just started.
+  // Let's stick to styling based on accumulated value? Or keep generic color.
+  // I'll update `getGradient` call to custom logic or update helper.
+  // Let's use blue for generic safe.
+
   const initials = useMemo(() => getInitials(data.fullName), [data.fullName]);
 
   return (
     <div
       className={cn(
-        "group relative bg-card rounded-2xl transition-all duration-300 hover:-translate-y-2 cursor-pointer shadow-lg hover:shadow-2xl",
-        shadowClass
+        "group relative bg-card rounded-2xl transition-all duration-300 hover:-translate-y-2 cursor-pointer shadow-lg hover:shadow-2xl shadow-indigo-500/10"
       )}
       onClick={() => onClick(data)}
     >
-      {/* Header */}
-      <div className={cn("h-24 w-full rounded-t-2xl relative overflow-hidden", gradientClass)}>
+      {/* Header - Show Block Scores */}
+      <div className="h-24 w-full rounded-t-2xl relative overflow-hidden bg-gradient-to-r from-indigo-500 to-purple-600">
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mixed-blend-overlay" />
         <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white font-bold px-3 py-1 rounded-lg border border-white/20 shadow-sm text-sm">
-          {data.totalAvg > 0 ? data.totalAvg.toFixed(2) : "N/A"}
+          Total: {data.totalAvg.toFixed(1)}
+        </div>
+        <div className="absolute bottom-2 left-4 text-white/90 text-sm font-medium flex gap-3">
+          <span>B1: {data.block1Score}</span>
+          <span>B2: {data.block2Score}</span>
         </div>
       </div>
 
@@ -134,18 +148,20 @@ const StudentCard = memo(({ data, onClick }: { data: any, onClick: (s: any) => v
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">Донишҷӯ</p>
         </div>
 
-        {/* Chart - Optimized to reduce excessive DOM depth if possible */}
+        {/* Chart - weekly scores 0-12.5 */}
         <div className="space-y-2">
-          <div className="flex items-end justify-between h-8 gap-[3px] px-1">
-            {data.weeklyAverages.map((avg: number, idx: number) => {
-              const height = avg > 0 ? Math.max((avg / 5) * 100, 15) : 10;
-              const barColor = avg === 0 ? "bg-muted" :
-                avg >= 4.5 ? "bg-emerald-400" :
-                  avg >= 3.5 ? "bg-blue-400" :
-                    avg >= 3.0 ? "bg-amber-400" : "bg-rose-400";
+          <div className="flex items-end justify-between h-12 gap-[3px] px-1">
+            {data.weeklyAverages.map((score: number, idx: number) => {
+              // Max score 12.5
+              const height = score > 0 ? Math.max((score / 12.5) * 100, 10) : 5;
+              const barColor = score === 0 ? "bg-muted" :
+                score >= 11 ? "bg-emerald-400" :
+                  score >= 8 ? "bg-blue-400" :
+                    score >= 6 ? "bg-amber-400" : "bg-rose-400";
               return (
                 <div
                   key={idx}
+                  title={`Week ${idx + 1}: ${score}`}
                   className={cn("w-full rounded-t-sm opacity-80 transition-all group-hover:opacity-100", barColor)}
                   style={{ height: `${height}%` }}
                 />
@@ -159,20 +175,215 @@ const StudentCard = memo(({ data, onClick }: { data: any, onClick: (s: any) => v
   );
 });
 
+// 2. Weekly Breakdown Component (Detailed Row)
+const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number, student: any, subjectId: string }) => {
+  // Logic to calculate specific breakdown values
+  const weekDays = student.gradesRaw?.filter((d: any) => d.weekNumber === weekNum) || [];
+  const relevantLessons: any[] = [];
+
+  weekDays.forEach((day: any) => {
+    day.lessons.forEach((l: any) => {
+      if (String(l.subjectId) === String(subjectId)) {
+        relevantLessons.push({ ...l, date: day.date, weekday: day.weekday });
+      }
+    });
+  });
+
+  const totalLessons = relevantLessons.length;
+  if (totalLessons === 0) {
+    return (
+      <div className="flex items-center justify-between p-4 border rounded-xl bg-muted/5 text-muted-foreground mb-4">
+        <span className="font-semibold">Ҳафтаи {weekNum}</span>
+        <span className="text-sm italic">Дарс набуд</span>
+      </div>
+    );
+  }
+
+  // 1. Attendance
+  const attendedCount = relevantLessons.filter(l => l.attendance === 'present').length;
+  const attendanceScore = (attendedCount / totalLessons) * 5;
+
+  // 2. Preparation
+  const sumPrep = relevantLessons.reduce((acc, l) => acc + (l.preparationGrade || 0), 0);
+  const avgPrep = sumPrep / totalLessons;
+  const preparationScore = (avgPrep / 5) * 2.5;
+
+  // 3. Assignment (Practical/Lab only)
+  const practicalLessons = relevantLessons.filter(l => l.lessonType === 'practice' || l.lessonType === 'lab');
+  const assignCount = practicalLessons.length;
+  let assignmentScore = 0;
+  let avgAssign = 0;
+  if (assignCount > 0) {
+    const sumAssign = practicalLessons.reduce((acc, l) => acc + (l.taskGrade || 0), 0);
+    avgAssign = sumAssign / assignCount;
+    assignmentScore = (avgAssign / 5) * 5;
+  }
+
+  const weeklyTotal = attendanceScore + preparationScore + assignmentScore;
+
+  const getLessonTypeLabel = (type: string) => {
+    switch (type) {
+      case 'lecture': return 'Lec';
+      case 'practice': return 'Pra';
+      case 'lab': return 'Lab';
+      case 'seminar': return 'Sem';
+      case 'exam': return 'Exam';
+      default: return 'Unk';
+    }
+  };
+
+  const getLessonTypeColor = (type: string) => {
+    switch (type) {
+      case 'lecture': return 'text-blue-500 bg-blue-50 border-blue-100';
+      case 'practice': return 'text-orange-500 bg-orange-50 border-orange-100';
+      case 'lab': return 'text-purple-500 bg-purple-50 border-purple-100';
+      default: return 'text-slate-500 bg-slate-50 border-slate-100';
+    }
+  };
+
+  return (
+    <div className="border rounded-xl overflow-hidden bg-white mb-4 shadow-sm hover:shadow-md transition-all">
+      {/* Header */}
+      <div className="bg-slate-50 p-4 border-b flex justify-between items-center">
+        <h3 className="font-bold text-lg text-slate-800">Ҳафтаи {weekNum}</h3>
+        <div className="flex items-center gap-3">
+          <div className="hidden md:block text-xs text-muted-foreground mr-2 font-mono bg-slate-100 px-2 py-1 rounded">
+            {attendanceScore.toFixed(2)} + {preparationScore.toFixed(2)} + {assignmentScore.toFixed(2)}
+          </div>
+          <Badge className={cn("text-base px-3 py-1",
+            weeklyTotal >= 11 ? "bg-emerald-500 hover:bg-emerald-600" :
+              weeklyTotal >= 8 ? "bg-blue-500 hover:bg-blue-600" :
+                weeklyTotal >= 6 ? "bg-amber-500 hover:bg-amber-600" : "bg-rose-500 hover:bg-rose-600"
+          )}>
+            Total: {weeklyTotal.toFixed(2)}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+        {/* Attendance Column */}
+        <div className="p-4 space-y-3">
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
+            <div className="p-1.5 rounded-md bg-blue-100 text-blue-700">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <h4 className="font-semibold text-sm">Attendance (Max 5)</h4>
+          </div>
+
+          <div className="space-y-2">
+            {relevantLessons.map((l, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm p-2 rounded bg-slate-50 border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase w-10 text-center", getLessonTypeColor(l.lessonType))}>
+                    {getLessonTypeLabel(l.lessonType)}
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium">{l.date}</span>
+                </div>
+                <Badge variant="outline" className={cn("border-0 font-medium", l.attendance === 'present' ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>
+                  {l.attendance === 'present' ? "Present" : "Absent"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-dashed">
+            <p className="text-xs text-slate-500 text-center font-mono bg-slate-50 p-2 rounded">
+              {attendedCount} attended out of {totalLessons} lessons<br />
+              ({attendedCount} ÷ {totalLessons}) × 5 = <span className="font-bold text-foreground">{attendanceScore.toFixed(2)}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Preparation Column */}
+        <div className="p-4 space-y-3">
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
+            <div className="p-1.5 rounded-md bg-purple-100 text-purple-700">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <h4 className="font-semibold text-sm">Preparation (Max 2.5)</h4>
+          </div>
+
+          <div className="space-y-2">
+            {relevantLessons.map((l, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm p-2 rounded bg-slate-50 border border-slate-100">
+                <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase w-10 text-center", getLessonTypeColor(l.lessonType))}>
+                  {getLessonTypeLabel(l.lessonType)}
+                </span>
+                <Badge variant="secondary" className="bg-white border shadow-sm font-mono">{l.preparationGrade || 0}</Badge>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-dashed text-center">
+            <div className="bg-slate-50 p-2 rounded">
+              <p className="text-xs text-slate-500 font-mono mb-1">
+                Average of lesson preparation grades
+              </p>
+              <p className="text-xs text-slate-500 font-mono">
+                ({avgPrep.toFixed(2)} / 5) × 2.5 = <span className="font-bold text-foreground">{preparationScore.toFixed(2)}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Assignment Column */}
+        <div className="p-4 space-y-3 bg-orange-50/30">
+          <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
+            <div className="p-1.5 rounded-md bg-orange-100 text-orange-700">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <h4 className="font-semibold text-sm">Assignment (Max 5)</h4>
+          </div>
+
+          <div className="space-y-2 min-h-[40px]">
+            {practicalLessons.length > 0 ? practicalLessons.map((l, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm p-2 rounded bg-white border border-orange-100 shadow-sm">
+                <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase w-10 text-center", getLessonTypeColor(l.lessonType))}>
+                  {getLessonTypeLabel(l.lessonType)}
+                </span>
+                <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 font-mono">
+                  {l.taskGrade || 0}
+                </Badge>
+              </div>
+            )) : (
+              <div className="flex flex-col items-center justify-center py-4 text-slate-400">
+                <span className="text-xs italic">Only Practical/Lab</span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-dashed text-center">
+            <div className="bg-white/50 p-2 rounded">
+              {practicalLessons.length > 0 ? (
+                <>
+                  <p className="text-xs text-slate-500 font-mono mb-1">
+                    Average of assignment grades
+                  </p>
+                  <p className="text-xs text-slate-500 font-mono">
+                    ({avgAssign.toFixed(2)} / 5) × 5 = <span className="font-bold text-foreground">{assignmentScore.toFixed(2)}</span>
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-slate-500 font-mono">N/A = 0</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 // 2. Memoized Student Modal
 const StudentModal = memo(({ student, subjectName, subjectId, onClose }: { student: any, subjectName: string, subjectId: string | undefined, onClose: () => void }) => {
   if (!student) return null;
 
   const initials = getInitials(student.fullName);
-  const totalAvgClass = getAverageStyle(student.totalAvg);
-  const semester1Avg = (student.weeklyAverages.slice(0, 8).reduce((a: number, b: number) => a + b, 0) / 8).toFixed(2);
-  const semester2Avg = (student.weeklyAverages.slice(8, 16).reduce((a: number, b: number) => a + b, 0) / 8).toFixed(2);
 
   return (
     <Dialog open={!!student} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-5xl overflow-hidden p-0 border-0 shadow-2xl bg-card/95 backdrop-blur-xl">
         <DialogHeader className="p-6 pb-2 border-b bg-muted/10 hidden">
-          {/* Hidden accessible header */}
           <DialogTitle>{student.fullName}</DialogTitle>
         </DialogHeader>
 
@@ -198,12 +409,12 @@ const StudentModal = memo(({ student, subjectName, subjectId, onClose }: { stude
           </div>
         </div>
 
-        {/* Stat Cards */}
+        {/* Stat Cards - Blocks */}
         <div className="-mt-8 px-8 grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           {[
-            { label: "Миёна (8 ҳаф. 1-ум)", value: semester1Avg, color: "bg-blue-500" },
-            { label: "Миёна (8 ҳаф. 2-юм)", value: semester2Avg, color: "bg-purple-500" },
-            { label: "Умумӣ", value: student.totalAvg.toFixed(2), color: student.totalAvg >= 3 ? "bg-emerald-500" : "bg-rose-500" },
+            { label: "Блоки 1 (Ҳаф 1-8)", value: student.block1Score + " / 100", color: "bg-blue-500" },
+            { label: "Блоки 2 (Ҳаф 9-16)", value: student.block2Score + " / 100", color: "bg-purple-500" },
+            { label: "Ҷамъ", value: student.totalAvg.toFixed(2), color: "bg-emerald-500" },
           ].map((stat, i) => (
             <div key={i} className="bg-card border rounded-xl p-4 shadow-lg flex items-center justify-between group hover:border-primary/50 transition-colors">
               <div>
@@ -229,18 +440,19 @@ const StudentModal = memo(({ student, subjectName, subjectId, onClose }: { stude
                 <tr>
                   <th className="p-4 text-left font-semibold text-muted-foreground w-20">Ҳафта</th>
                   <th className="p-4 text-left font-semibold text-muted-foreground">Дарсҳо (Баҳоҳо)</th>
-                  <th className="p-4 text-center font-semibold text-muted-foreground w-32">Миёна</th>
+                  <th className="p-4 text-center font-semibold text-muted-foreground w-32">Балл (Max 12.5)</th>
                   <th className="p-4 text-right font-semibold text-muted-foreground w-24">Статус</th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: 16 }).map((_, i) => {
                   const weekNum = i + 1;
+                  const weeklyScore = student.weeklyAverages[i] || 0;
 
                   const weekDays = student.gradesRaw?.filter((d: any) => d.weekNumber === weekNum) || [];
                   const relevantLessons: any[] = [];
 
-                  // Collect relevant lessons
+                  // Collect relevant lessons for display context
                   weekDays.forEach((day: any) => {
                     day.lessons.forEach((l: any) => {
                       if (String(l.subjectId) === String(subjectId)) {
@@ -249,72 +461,58 @@ const StudentModal = memo(({ student, subjectName, subjectId, onClose }: { stude
                     });
                   });
 
-                  // Calculate metrics for display
-                  let sum = 0;
-                  let count = 0;
-
+                  // Render lesson chips
                   const lessonDisplays = relevantLessons.map((l, idx) => {
                     if (l.lessonType === "lecture") {
                       return (
                         <Badge key={idx} variant="outline" className="bg-slate-50 text-slate-400 border-dashed">
-                          Лексия
+                          Лек (Att)
                         </Badge>
                       );
                     }
 
                     const prep = l.preparationGrade !== null ? Number(l.preparationGrade) : 0;
                     const task = l.taskGrade !== null ? Number(l.taskGrade) : 0;
-                    const val = (prep + task) / 2;
-
-                    // Add to sum
-                    sum += val;
-                    count++;
-
-                    const label = l.lessonType === "lab" ? "Лаб" : "Амалӣ";
+                    // Show raw inputs
+                    const label = l.lessonType === "lab" ? "Лаб" : "Ам";
 
                     return (
                       <div key={idx} className="flex flex-col items-center">
-                        <Badge className={cn("mb-1",
-                          val >= 4.5 ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" :
-                            val > 0 ? "bg-blue-100 text-blue-700 hover:bg-blue-200" :
-                              "bg-rose-100 text-rose-700 hover:bg-rose-200 border-rose-200"
-                        )}>
-                          {label}: {val}
+                        <Badge variant="secondary" className="mb-1 text-[10px] h-5 px-1 bg-slate-100 text-slate-600 border border-slate-200">
+                          {label}: P{prep}/T{task}
                         </Badge>
                       </div>
                     );
                   });
 
-                  // Re-calculate average dynamically for display transparency
-                  const calculatedAvg = count > 0 ? sum / count : 0;
+                  const hasLessons = relevantLessons.length > 0;
 
                   return (
                     <tr key={i} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
                       <td className="p-4 font-medium whitespace-nowrap text-muted-foreground">Ҳафтаи {weekNum}</td>
                       <td className="p-4">
                         <div className="flex flex-wrap gap-2 items-center">
-                          {lessonDisplays.length > 0 ? lessonDisplays : <span className="text-xs text-muted-foreground italic">Дарс набуд</span>}
+                          {hasLessons ? lessonDisplays : <span className="text-xs text-muted-foreground italic">Дарс набуд</span>}
                         </div>
                       </td>
                       <td className="p-4 text-center">
-                        {count > 0 ? (
+                        {hasLessons || weeklyScore > 0 ? (
                           <div className="flex flex-col items-center">
                             <span className={cn("font-bold text-lg",
-                              calculatedAvg >= 4.5 ? "text-emerald-600" :
-                                calculatedAvg >= 3.5 ? "text-blue-600" :
-                                  calculatedAvg >= 3 ? "text-amber-600" : "text-rose-600"
-                            )}>{calculatedAvg.toFixed(2)}</span>
-                            <span className="text-[10px] text-muted-foreground">({sum} / {count})</span>
+                              weeklyScore >= 11 ? "text-emerald-600" :
+                                weeklyScore >= 8 ? "text-blue-600" :
+                                  weeklyScore >= 6 ? "text-amber-600" : "text-rose-600"
+                            )}>{weeklyScore.toFixed(2)}</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="p-4 text-right">
-                        {count > 0 ? (
-                          calculatedAvg >= 4.5 ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0">Аъло</Badge> :
-                            calculatedAvg >= 3.5 ? <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">Хуб</Badge> :
-                              calculatedAvg >= 3 ? <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-0">Миёна</Badge> :
+                        {hasLessons || weeklyScore > 0 ? (
+                          weeklyScore >= 11 ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0">Аъло</Badge> :
+                            weeklyScore >= 8 ? <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">Хуб</Badge> :
+                              weeklyScore >= 6 ? <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-0">Қаноат</Badge> :
                                 <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-200 border-0">Бад</Badge>
                         ) : (
                           <Badge variant="outline" className="text-muted-foreground border-dashed bg-transparent">Нест</Badge>
@@ -333,6 +531,81 @@ const StudentModal = memo(({ student, subjectName, subjectId, onClose }: { stude
 });
 
 // 3. Memoized Weekly List (Detailed Accordion)
+// 2b. Memoized Student Modal (Refactored for Detail View)
+const StudentModalRefactored = memo(({ student, subjectName, subjectId, onClose }: { student: any, subjectName: string, subjectId: string | undefined, onClose: () => void }) => {
+  if (!student) return null;
+
+  const initials = getInitials(student.fullName);
+
+  return (
+    <Dialog open={!!student} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-5xl overflow-hidden p-0 border-0 shadow-2xl bg-card/95 backdrop-blur-xl h-[90vh] flex flex-col">
+        <DialogHeader className="p-6 pb-2 border-b bg-muted/10 hidden">
+          <DialogTitle>{student.fullName}</DialogTitle>
+        </DialogHeader>
+
+        {/* Modal Scroll Container */}
+        <ScrollArea className="flex-1">
+          <div className="p-6">
+            {/* Modal Header */}
+            <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left mb-8">
+              <Avatar className="h-24 w-24 border-4 border-background shadow-xl">
+                <AvatarFallback className="text-3xl bg-primary/10 text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-2">
+                <Badge variant="outline" className="bg-background/50 backdrop-blur border-primary/20 text-primary mb-2 mx-auto md:mx-0 w-fit">
+                  Профили донишҷӯ
+                </Badge>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  {student.fullName}
+                </h2>
+                <p className="text-lg text-muted-foreground font-medium">
+                  {subjectName}
+                </p>
+              </div>
+            </div>
+
+            {/* Stat Cards - Blocks */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              {[
+                { label: "Блоки 1 (Ҳаф 1-8)", value: student.block1Score + " / 100", color: "bg-blue-500" },
+                { label: "Блоки 2 (Ҳаф 9-16)", value: student.block2Score + " / 100", color: "bg-purple-500" },
+                { label: "Ҷамъ", value: student.totalAvg.toFixed(2), color: "bg-emerald-500" },
+              ].map((stat, i) => (
+                <div key={i} className="bg-card border rounded-xl p-4 shadow-lg flex items-center justify-between group hover:border-primary/50 transition-colors">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase">{stat.label}</p>
+                    <h4 className="text-2xl font-bold mt-1">{stat.value}</h4>
+                  </div>
+                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md", stat.color)}>
+                    <GraduationCap className="h-5 w-5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Detailed Breakdown List */}
+            <div className="space-y-6">
+              <h4 className="font-semibold text-lg flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                Таърихи пешрафт (Муфассал)
+              </h4>
+
+              <div>
+                {Array.from({ length: 16 }).map((_, i) => (
+                  <WeeklyBreakdown key={i} weekNum={i + 1} student={student} subjectId={subjectId || ""} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+});
+
 const WeeklyGradesList = memo(({ students, subjectId }: { students: any[], subjectId: string }) => {
   return (
     <div className="space-y-4">
@@ -356,7 +629,7 @@ const WeeklyGradesList = memo(({ students, subjectId }: { students: any[], subje
                   <div className="flex items-center gap-4 text-sm">
                     <div className="flex flex-col">
                       <span className="text-xs text-muted-foreground">Миёна</span>
-                      <span className={cn("font-bold", student.totalAvg >= 3 ? "text-emerald-600" : "text-rose-600")}>
+                      <span className={cn("font-bold", student.totalAvg >= 100 ? "text-emerald-600" : "text-rose-600")}>
                         {student.totalAvg.toFixed(2)}
                       </span>
                     </div>
@@ -402,10 +675,12 @@ const WeeklyGradesList = memo(({ students, subjectId }: { students: any[], subje
                         {/* Calculate weekly average for display */}
                         {gradesInWeek.length > 0 && (
                           <Badge variant="outline" className={cn("text-[10px] h-5 px-1",
-                            avg >= 4.5 ? "text-emerald-600 border-emerald-200 bg-emerald-50" :
-                              avg >= 3.0 ? "text-blue-600 border-blue-200 bg-blue-50" : "text-rose-600 border-rose-200 bg-rose-50"
+                            avg >= 11 ? "text-emerald-600 border-emerald-200 bg-emerald-50" :
+                              avg >= 8 ? "text-blue-600 border-blue-200 bg-blue-50" :
+                                avg >= 6 ? "text-amber-600 border-amber-200 bg-amber-50" :
+                                  "text-rose-600 border-rose-200 bg-rose-50"
                           )}>
-                            Avg: {avg.toFixed(1)}
+                            Score: {avg.toFixed(1)}
                           </Badge>
                         )}
                       </div>
@@ -460,7 +735,8 @@ export default function AdminWeeklyGradePage() {
   }, []);
 
   useEffect(() => {
-    axios.get(`${apiUrl}/groups`).then((res) => setGroups(res.data)).catch(console.error);
+    const token = localStorage.getItem("token");
+    axios.get(`${apiUrl}/groups`, { headers: { Authorization: `Bearer ${token}` } }).then((res) => setGroups(res.data)).catch(console.error);
   }, [apiUrl]);
 
   const fetchData = async () => {
@@ -491,7 +767,7 @@ export default function AdminWeeklyGradePage() {
     if (selectedGroup) fetchData();
   }, [selectedGroup, selectedSubject, semester]); // <-- Re-fetch on semester change
 
-  // OPTIMIZED CALCULATION
+  // OPTIMIZED CALCULATION: New 16-Week Semester Logic (Max 12.5 per week)
   const subjectStudent16Weeks = useMemo(() => {
     if (!selectedSubject || !data) return [];
 
@@ -502,70 +778,85 @@ export default function AdminWeeklyGradePage() {
     }
 
     return data.students.map((student) => {
-      // ... logic stays same ...
-      // Assuming 'grades' already reflects the fetched semester data
-      const weeklySums = new Float32Array(16);
-      const weeklyActualCounts = new Int8Array(16);
-
+      const weeklyScores = new Float32Array(16);
       const grades = student.grades;
-      const len = grades.length;
 
-      for (let i = 0; i < len; i++) {
-        const day = grades[i];
-        const weekNum = day.weekNumber;
-        if (!weekNum || weekNum < 1 || weekNum > 16) continue;
+      // Calculate scores for each week 1-16
+      for (let w = 1; w <= 16; w++) {
+        const weekIndex = w - 1;
 
-        const weekIndex = weekNum - 1;
-        const lessons = day.lessons;
-
-        for (let l = 0; l < lessons.length; l++) {
-          const lesson = lessons[l];
-
-          // lecture-ҳоро ҳисоб намекунем
-          if (lesson.lessonType === "lecture") continue;
-
-          if (lesson.subjectId && String(lesson.subjectId) === String(selectedSubject)) {
-            // Extract grades, treating active 0 as 0. Missing might be null.
-            const prep = lesson.preparationGrade !== null && lesson.preparationGrade !== undefined ? Number(lesson.preparationGrade) : 0;
-            const task = lesson.taskGrade !== null && lesson.taskGrade !== undefined ? Number(lesson.taskGrade) : 0;
-
-            // Use taskGrade if present, otherwise preparationGrade, or 0. max 5.
-            // Note: The previous logic was (prep + task) / 2.
-            // However, typically it's precedence or summation. 
-            // Given the user example "0+2+5+4", it implies single values per lesson.
-            // Let's preserve the existing (prep + task) / 2 logic IF that was intended, OR imply precedence.
-            // But wait, the previous code was: const lessonGrade = (prep + task) / 2;
-            // If the user puts 5 in prep and 0 in task, (5+0)/2 = 2.5? Maybe they want that.
-            // BUT usually in University system it's one grade per lesson. 
-            // I will stick to the previous (prep + task) / 2 but allow it to be 0.
-
-            const lessonGrade = (prep + task) / 2;
-
-            // CHANGE: Always count the lesson and add the grade (even if 0)
-            weeklySums[weekIndex] += lessonGrade;
-            weeklyActualCounts[weekIndex]++;
+        // 1. Gather all lessons for this subject in this week
+        const relevantLessons = [];
+        // Loop through all days student has grades for
+        for (const day of grades) {
+          if (day.weekNumber === w) {
+            for (const l of day.lessons) {
+              if (String(l.subjectId) === String(selectedSubject)) {
+                relevantLessons.push(l);
+              }
+            }
           }
         }
+
+        const totalLessons = relevantLessons.length;
+        if (totalLessons === 0) {
+          weeklyScores[weekIndex] = 0;
+          continue;
+        }
+
+        // 2. Attendance Score (Max 5)
+        // Formula: (attended / total) * 5
+        const attendedCount = relevantLessons.filter(l => l.attendance === 'present').length;
+        const attendanceScore = (attendedCount / totalLessons) * 5;
+
+        // 3. Preparation Score (Max 2.5)
+        // Formula: ((sum(prep) / total) / 5) * 2.5
+        // preparationGrade 0-5
+        const sumPrep = relevantLessons.reduce((acc, l) => acc + (l.preparationGrade || 0), 0);
+        const avgPrep = sumPrep / totalLessons;
+        const preparationScore = (avgPrep / 5) * 2.5;
+
+        // 4. Assignment Score (Max 5)
+        // Applies ONLY to practical and laboratory
+        // Formula: ((sum(task) / practiceCount) / 5) * 5
+        const practicalLessons = relevantLessons.filter(l => l.lessonType === 'practice' || l.lessonType === 'lab');
+        const assignLessonCount = practicalLessons.length;
+
+        let assignmentScore = 0;
+        if (assignLessonCount > 0) {
+          const sumAssign = practicalLessons.reduce((acc, l) => acc + (l.taskGrade || 0), 0);
+          const avgAssign = sumAssign / assignLessonCount;
+          assignmentScore = (avgAssign / 5) * 5;
+        }
+
+        // Weekly Total
+        const weeklyTotal = attendanceScore + preparationScore + assignmentScore;
+        weeklyScores[weekIndex] = Number(weeklyTotal.toFixed(2));
       }
 
-      const weeklyAverages = Array.from(weeklySums).map((sum, i) => {
-        const count = weeklyActualCounts[i];
-        return count > 0 ? Number((sum / count).toFixed(2)) : 0;
-      });
+      // Block Totals
+      const block1Score = weeklyScores.slice(0, 8).reduce((a, b) => a + b, 0); // Weeks 1-8
+      const block2Score = weeklyScores.slice(8, 16).reduce((a, b) => a + b, 0); // Weeks 9-16
 
-      const first8Avg = weeklyAverages.slice(0, 8).reduce((a, b) => a + b, 0) / 8;
-      const next8Avg = weeklyAverages.slice(8, 16).reduce((a, b) => a + b, 0) / 8;
-      const totalAvg = Number(((first8Avg + next8Avg) / 2).toFixed(2));
+      // We store block scores. Since UI uses totalAvg, we might map Block 1+2
+      // But user wants separate totals.
+      // We will sum them for a "Total Semester Score" (Max 200? Or 100 per block independent)
+      // UI expects 'totalAvg'. We can use (Block1 + Block2) or keep them separate.
+      // Let's store them in the object.
+
+      const totalScore = block1Score + block2Score;
 
       return {
         fullName: student.fullName,
-        weeklyAverages,
+        weeklyAverages: Array.from(weeklyScores), // Now represents Weekly Scores (0-12.5)
         weeklyExpectedCounts: expectedCounts,
-        totalAvg,
+        totalAvg: totalScore, // This is now Total Score (0-200), not average 0-5
+        block1Score: Number(block1Score.toFixed(2)),
+        block2Score: Number(block2Score.toFixed(2)),
         gradesRaw: grades
       };
     });
-  }, [selectedSubject, data]); // data changes when semester changes
+  }, [selectedSubject, data]);
 
   // ... rest ...
 
@@ -722,7 +1013,7 @@ export default function AdminWeeklyGradePage() {
                     ))}
                   </div>
 
-                  <StudentModal
+                  <StudentModalRefactored
                     student={selectedStudentDetails}
                     subjectName={data?.subjects.find(s => s._id === selectedSubject)?.name || ""}
                     subjectId={selectedSubject}

@@ -53,9 +53,11 @@ export default function WeeklySchedulePage() {
 
   // Гирифтани гурӯҳҳо ва фанҳо
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    const headers = { Authorization: `Bearer ${token}` };
     Promise.all([
-      axios.get(`${apiUrl}/groups`),
-      axios.get(`${apiUrl}/subjects`),
+      axios.get(`${apiUrl}/groups`, { headers }),
+      axios.get(`${apiUrl}/subjects`, { headers }),
     ])
       .then(([groupsRes, subjectsRes]) => {
         setGroups(groupsRes.data);
@@ -87,9 +89,11 @@ export default function WeeklySchedulePage() {
     setLoading(true);
     setWeeklySchedule(null);
 
+    const token = localStorage.getItem("token");
     axios
       .get(`${apiUrl}/weeklySchedule/group/${selectedGroup}`, {
-        params: { semester }
+        params: { semester },
+        headers: { Authorization: `Bearer ${token}` }
       })
       .then((res) => {
         setWeeklySchedule(res.data);

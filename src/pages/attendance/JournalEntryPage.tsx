@@ -41,7 +41,7 @@ interface Student {
   attendance: "present" | "absent" | "late" | null;
   preparationGrade: number | null;
   taskGrade: number | null;
-  notes: string;
+
 }
 export default function JournalEntryPage() {
   const { date, shift, slot, groupId: urlGroupId, subjectId: urlSubjectId } = useParams<{
@@ -60,6 +60,7 @@ export default function JournalEntryPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [subjectName, setSubjectName] = useState("Фан");
   const [groupName, setGroupName] = useState("Гурӯҳ");
+  const [course, setCourse] = useState<number | null>(null);
   const [groupId, setGroupId] = useState<string>("");
   const [lessonType, setLessonType] = useState<"lecture" | "practice" | "lab">("practice");
   const [topic, setTopic] = useState("");
@@ -87,6 +88,7 @@ export default function JournalEntryPage() {
       setJournalId(data._id);
       setSubjectName(data.subjectId?.name || "Фан");
       setGroupName(data.groupId?.name || "Гурӯҳ");
+      setCourse(data.groupId?.course || null);
       setGroupId(data.groupId?._id || "");
       setLessonType(data.lessonType || "practice");
       setTopic(data.topic || "");
@@ -100,10 +102,10 @@ export default function JournalEntryPage() {
               `${s.studentId.firstName || ""} ${s.studentId.lastName || ""
                 }`.trim(),
           },
-          attendance: s.attendance || "absent",
+          attendance: s.attendance || "present",
           preparationGrade: s.preparationGrade,
           taskGrade: s.taskGrade,
-          notes: s.notes || "",
+
         }))
       );
     } catch (err: any) {
@@ -195,47 +197,74 @@ export default function JournalEntryPage() {
         </Button>
 
         {/* Header */}
+        {/* Header */}
         <Card className="shadow-2xl mb-8 border-0 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
-            <CardTitle className="text-3xl font-bold">Журнали дарс</CardTitle>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 text-lg">
+          <CardHeader className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white p-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
               <div>
-                <strong>Гурӯҳ:</strong> {groupName}
+                <h1 className="text-3xl font-bold mb-2">Журнали дарс</h1>
+                <p className="text-white/80 text-lg flex items-center gap-2">
+                  <span className="font-semibold">{subjectName}</span>
+                  <span className="opacity-50">•</span>
+                  <span>{groupName}</span>
+                  {course && (
+                    <>
+                      <span className="opacity-50">•</span>
+                      <span>Курси {course}</span>
+                    </>
+                  )}
+                </p>
               </div>
-              <div>
-                <strong>Фан:</strong> {subjectName}
-              </div>
-              <div>
-                <strong>Сана:</strong>{" "}
-                {format(zonedDate, "dd MMMM yyyy, EEEE", { locale: ru })}
+              <div className="text-right hidden md:block">
+                <p className="text-xl font-medium">{format(zonedDate, "bbbb", { locale: ru })}</p>
+                <p className="text-white/80">{format(zonedDate, "d MMMM yyyy", { locale: ru })}</p>
               </div>
             </div>
-            ''
+
             <div className="flex flex-wrap gap-3 mt-4">
-              <Badge variant="secondary" className="text-lg px-4 py-2">
+              <Badge variant="secondary" className="text-base px-4 py-1.5 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
                 {shiftName}
               </Badge>
-              <Badge variant="secondary" className="text-lg px-4 py-2">
-                Соат: {time}
+              <Badge variant="secondary" className="text-base px-4 py-1.5 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
+                {time}
               </Badge>
-              <Badge variant="secondary" className="text-lg px-4 py-2">
+              <Badge variant="secondary" className="text-base px-4 py-1.5 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
                 Слот: {slot}
               </Badge>
-              {lessonType === "lecture" && (
-                <Badge variant="outline" className="text-lg px-4 py-2 bg-blue-50 text-blue-700 border-blue-200">
-                  📚 Лексионӣ (Танҳо ҳозирӣ)
+
+              {/* Lesson Type Badges */}
+              {lessonType === 'lecture' && (
+                <Badge className="text-base px-4 py-1.5 bg-blue-500 text-white border-0">
+                  📚 Лексионӣ
+                </Badge>
+              )}
+              {lessonType === 'practice' && (
+                <Badge className="text-base px-4 py-1.5 bg-orange-500 text-white border-0">
+                  📝 Амалӣ
+                </Badge>
+              )}
+              {lessonType === 'lab' && (
+                <Badge className="text-base px-4 py-1.5 bg-purple-500 text-white border-0">
+                  🧪 Лабораторӣ
                 </Badge>
               )}
             </div>
 
-            <div className="mt-6">
-              <label className="text-white/90 mb-2 block font-medium">Мавзӯи дарс (Topic)</label>
-              <Input
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="Мавзӯи имрӯзаро ворид кунед..."
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-12 text-lg focus:bg-white/20 transition-all"
-              />
+            <div className="mt-8">
+              <label className="text-white/90 mb-3 block font-medium text-lg flex items-center gap-2">
+                <span className="bg-white/20 p-1.5 rounded-md"><Save className="w-4 h-4" /></span>
+                Мавзӯи дарс (Topic)
+              </label>
+              <div className="relative group">
+                <Input
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="Мавзӯи имрӯзаро ворид кунед..."
+                  disabled={user?.role === "mudir"}
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-14 text-xl px-4 rounded-xl focus:bg-white/20 focus:border-white/40 focus:ring-0 transition-all disabled:opacity-50 backdrop-blur-md shadow-inner"
+                />
+                <div className="absolute inset-0 rounded-xl bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              </div>
             </div>
           </CardHeader>
         </Card>
@@ -296,15 +325,17 @@ export default function JournalEntryPage() {
                 <Users className="h-7 w-7" />
                 Рӯйхати донишҷӯён ({students.length} нафар)
               </CardTitle>
-              <Button
-                onClick={saveJournal}
-                disabled={saving}
-                size="lg"
-                className="bg-gradient-to-r from-green-600 to-emerald-600"
-              >
-                {saving ? "Сабт..." : "Сабт кардан"}
-                <Save className="ml-3 h-5 w-5" />
-              </Button>
+              {user?.role !== "mudir" && (
+                <Button
+                  onClick={saveJournal}
+                  disabled={saving}
+                  size="lg"
+                  className="bg-gradient-to-r from-green-600 to-emerald-600"
+                >
+                  {saving ? "Сабт..." : "Сабт кардан"}
+                  <Save className="ml-3 h-5 w-5" />
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -314,13 +345,11 @@ export default function JournalEntryPage() {
                   <TableHead className="w-12 text-center">#</TableHead>
                   <TableHead>Ному насаб</TableHead>
                   <TableHead className="text-center">Ҳозирӣ</TableHead>
+                  <TableHead className="text-center">Омодагӣ</TableHead>
                   {lessonType !== "lecture" && (
-                    <>
-                      <TableHead className="text-center">Омодагӣ</TableHead>
-                      <TableHead className="text-center">Вазифа</TableHead>
-                    </>
+                    <TableHead className="text-center">Вазифа</TableHead>
                   )}
-                  <TableHead>Эзоҳ</TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -337,7 +366,8 @@ export default function JournalEntryPage() {
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={student.attendance || "absent"}
+                        value={student.attendance || "present"}
+                        disabled={user?.role === "mudir"}
                         onValueChange={(v) =>
                           updateStudent(
                             student?.studentId?._id,
@@ -352,73 +382,60 @@ export default function JournalEntryPage() {
                         <SelectContent>
                           <SelectItem value="present">Ҳаст</SelectItem>
                           <SelectItem value="absent">Нест</SelectItem>
-                          <SelectItem value="late">Дер кард</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    {lessonType !== "lecture" && (
-                      <>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="5"
-                            step="1"
-                            className="w-24 text-center font-medium"
-                            value={student.preparationGrade ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (
-                                val === "" ||
-                                (Number(val) >= 0 && Number(val) <= 5)
-                              ) {
-                                updateStudent(
-                                  student.studentId._id,
-                                  "preparationGrade",
-                                  val === "" ? null : Number(val)
-                                );
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="5"
-                            step="1"
-                            className="w-24 text-center font-medium"
-                            value={student.taskGrade ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (
-                                val === "" ||
-                                (Number(val) >= 0 && Number(val) <= 5)
-                              ) {
-                                updateStudent(
-                                  student.studentId._id,
-                                  "taskGrade",
-                                  val === "" ? null : Number(val)
-                                );
-                              }
-                            }}
-                          />
-                        </TableCell>
-                      </>
-                    )}
                     <TableCell>
-                      <Input
-                        placeholder="Шарҳ..."
-                        value={student.notes}
-                        onChange={(e) =>
+                      <Select
+                        value={student.preparationGrade ? String(student.preparationGrade) : ""}
+                        disabled={user?.role === "mudir"}
+                        onValueChange={(v) =>
                           updateStudent(
-                            student.studentId?._id,
-                            "notes",
-                            e.target.value
+                            student?.studentId?._id,
+                            "preparationGrade",
+                            Number(v)
                           )
                         }
-                      />
+                      >
+                        <SelectTrigger className="w-24 mx-auto">
+                          <SelectValue placeholder="-" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="1.5">1.5</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="2.5">2.5</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
+
+                    {lessonType !== "lecture" && (
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="5"
+                          step="1"
+                          disabled={user?.role === "mudir"}
+                          className="w-24 text-center font-medium disabled:opacity-50 mx-auto"
+                          value={student.taskGrade ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (
+                              val === "" ||
+                              (Number(val) >= 0 && Number(val) <= 5)
+                            ) {
+                              updateStudent(
+                                student.studentId._id,
+                                "taskGrade",
+                                val === "" ? null : Number(val)
+                              );
+                            }
+                          }}
+                        />
+                      </TableCell>
+                    )}
+
                   </TableRow>
                 ))}
               </TableBody>

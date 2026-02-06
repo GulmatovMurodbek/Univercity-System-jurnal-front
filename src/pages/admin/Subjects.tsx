@@ -30,10 +30,12 @@ const subjectColors = [
   "from-indigo-500 to-indigo-600",
   "from-pink-500 to-pink-600",
 ];
+import { useAuth } from "@/contexts/AuthContext";
 type User = {
   role: "admin" | "teacher" | "student";
 };
 export default function Subjects() {
+  const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
   let [subjects, setSubjects] = useState([]);
   let [teachers, setTeachers] = useState([]);
@@ -45,12 +47,12 @@ export default function Subjects() {
     setSubjectToEdit(subject);
     setOpenEdit(true);
   };
-  const user: User | null = localStorage.getItem("user")
-    ? JSON.parse(localStorage.getItem("user") as string)
-    : null;
   async function getSubjects() {
     try {
-      let { data } = await axios.get(`${apiUrl}/subjects`);
+      const token = localStorage.getItem("token");
+      let { data } = await axios.get(`${apiUrl}/subjects`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setSubjects(data);
     } catch (error) {
       console.error(error);
@@ -71,7 +73,10 @@ export default function Subjects() {
   }
   async function getGroups() {
     try {
-      let { data } = await axios.get(`${apiUrl}/groups`);
+      const token = localStorage.getItem("token");
+      let { data } = await axios.get(`${apiUrl}/groups`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setGroups(data)
     } catch (error) {
       console.error(error);
@@ -79,7 +84,10 @@ export default function Subjects() {
   }
   async function deleteSubject(id: any) {
     try {
-      await axios.delete(`${apiUrl}/subjects/${id}`)
+      const token = localStorage.getItem("token");
+      await axios.delete(`${apiUrl}/subjects/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
       getSubjects()
     } catch (error) {
       console.error(error);
@@ -107,10 +115,12 @@ export default function Subjects() {
           title="Subjects"
           description={`Showing ${filteredSubjects.length} of ${subjects.length} subjects`}
           actions={
-            <Button onClick={() => setOpen(true)} variant="gradient">
-              <PlusCircle className="w-4 h-4" />
-              Илова кардани фан
-            </Button>
+            user?.role === "admin" && (
+              <Button onClick={() => setOpen(true)} variant="gradient">
+                <PlusCircle className="w-4 h-4" />
+                Илова кардани фан
+              </Button>
+            )
           }
         />) : null}
 
@@ -196,14 +206,16 @@ export default function Subjects() {
 
                 <div className="mt-4 pt-4 border-t border-border/50">
                   <div className="flex items-center justify-between text-xs">
-                    {user?.role == "admin" ? (
+                    {user?.role === "admin" && (
                       <Button onClick={() => deleteSubject(subject._id)} className="bg-[#ff5757] p-3">
                         <ArchiveX />
-                      </Button>) : null}
-                    {user?.role == "admin" ? (
+                      </Button>
+                    )}
+                    {user?.role === "admin" && (
                       <Button onClick={() => handleEditClick(subject)} className="bg-[#2626ff] p-3">
                         <Pen />
-                      </Button>) : null}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>

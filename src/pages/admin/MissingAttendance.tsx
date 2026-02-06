@@ -31,6 +31,7 @@ interface MissingEntry {
     time: string;
     slot: number;
     shift: number;
+    course?: number;
 }
 
 export default function MissingAttendance() {
@@ -174,7 +175,7 @@ export default function MissingAttendance() {
                                                 <CardContent className="space-y-2 text-sm pb-4">
                                                     <div className="flex justify-between items-center bg-muted/50 p-2 rounded-md">
                                                         <span className="text-muted-foreground">Гурӯҳ:</span>
-                                                        <Badge variant="outline" className="bg-background">{item.group}</Badge>
+                                                        <Badge variant="outline" className="bg-background">{item.group} ({item.course})</Badge>
                                                     </div>
                                                     <div className="flex justify-between items-center p-2">
                                                         <span className="text-muted-foreground">Вақт:</span>
@@ -214,7 +215,7 @@ export default function MissingAttendance() {
                                                         </TableCell>
                                                         <TableCell>{item.subject}</TableCell>
                                                         <TableCell>
-                                                            <Badge variant="outline">{item.group}</Badge>
+                                                            <Badge variant="outline">{item.group} ({item.course})</Badge>
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="flex items-center gap-2">

@@ -34,6 +34,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import axios from "axios";
 import { AddStudentModal } from "@/components/shared/studentAdd";
 import { EditStudentModal } from "@/components/shared/studentEdit";
@@ -44,6 +45,7 @@ const Info = ({ label, value }: { label: string; value: any }) => (
   </div>
 );
 export default function Students() {
+  const { user } = useAuth();
   /* State for Pagination & Data */
   const [groups, setGroups] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -69,7 +71,10 @@ export default function Students() {
 
   const getGroups = async () => {
     try {
-      const { data } = await axios.get(`${apiUrl}/groups`);
+      const token = localStorage.getItem("token");
+      const { data } = await axios.get(`${apiUrl}/groups`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setGroups(data);
     } catch (error) {
       console.error(error);
@@ -79,8 +84,10 @@ export default function Students() {
   const getStudents = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem("token");
       // Pass pagination and search params
       const { data } = await axios.get(`${apiUrl}/students`, {
+        headers: { Authorization: `Bearer ${token}` },
         params: {
           page: currentPage,
           limit: 10,
@@ -102,7 +109,10 @@ export default function Students() {
     if (!confirm("Шумо мутмаин ҳастед, ки мехоҳед ин донишҷӯро пок кунед?"))
       return;
     try {
-      await axios.delete(`${apiUrl}/students/${id}`);
+      const token = localStorage.getItem("token");
+      await axios.delete(`${apiUrl}/students/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       getStudents();
     } catch (error) {
       console.error(error);
@@ -139,10 +149,12 @@ export default function Students() {
         title="Донишҷӯён"
         description={`Идоракунии ${students.length.toLocaleString()} донишҷӯён`}
         actions={
-          <Button onClick={() => setOpen(true)} variant="gradient">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Илова кардани донишҷӯ
-          </Button>
+          user?.role === "admin" && (
+            <Button onClick={() => setOpen(true)} variant="gradient">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Илова кардани донишҷӯ
+            </Button>
+          )
         }
       />
 
@@ -287,25 +299,29 @@ export default function Students() {
                         </Button>
 
                         {/* Таҳрир */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedStudent(student);
-                            setEditOpen(true);
-                          }}
-                        >
-                          <Pen className="w-4 h-4" />
-                        </Button>
+                        {user?.role === "admin" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedStudent(student);
+                              setEditOpen(true);
+                            }}
+                          >
+                            <Pen className="w-4 h-4" />
+                          </Button>
+                        )}
 
                         {/* Пок кардан */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteUser(student._id)}
-                        >
-                          <Trash className="w-4 h-4 text-rose-500" />
-                        </Button>
+                        {user?.role === "admin" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteUser(student._id)}
+                          >
+                            <Trash className="w-4 h-4 text-rose-500" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -460,15 +476,17 @@ export default function Students() {
             <Button size="sm" variant="outline" onClick={() => setViewOpen(false)}>
               Пӯшидан
             </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditOpen(true);
-                setViewOpen(false);
-              }}
-            >
-              Таҳрир
-            </Button>
+            {user?.role === "admin" && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditOpen(true);
+                  setViewOpen(false);
+                }}
+              >
+                Таҳрир
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

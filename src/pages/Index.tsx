@@ -11,7 +11,11 @@ export default function Index() {
     if (loading) return;
 
     if (user) {
-      navigate(`/${user.role}`, { replace: true });
+      if (user.role === "teacher" && user.isDean) {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate(`/${user.role}`, { replace: true });
+      }
     } else {
       navigate("/login", { replace: true });
     }

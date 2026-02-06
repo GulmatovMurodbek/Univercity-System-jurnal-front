@@ -24,6 +24,7 @@ export default function AddTeacherModal({ open, onClose, onSubmit }: AddTeacherP
     phone: "",
     dateOfBirth: "",
     subjects: [] as string[],
+    isDean: false,
   });
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -78,6 +79,19 @@ export default function AddTeacherModal({ open, onClose, onSubmit }: AddTeacherP
           <Input type="password" name="password" value={form.password} onChange={handleChange} />
         </div>
 
+        {/* Is Dean Checkbox */}
+        <div className="flex items-center space-x-2 pt-2">
+          <input
+            type="checkbox"
+            id="isDean"
+            name="isDean"
+            checked={form.isDean}
+            onChange={(e) => setForm({ ...form, isDean: e.target.checked })}
+            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <Label htmlFor="isDean" className="cursor-pointer">Мудир кафедра (Dean)</Label>
+        </div>
+
         {/* Phone */}
         <div className="flex flex-col gap-2">
           <Label>Телефон</Label>
@@ -123,6 +137,6 @@ export default function AddTeacherModal({ open, onClose, onSubmit }: AddTeacherP
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   );
 }

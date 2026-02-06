@@ -20,6 +20,7 @@ import {
   MessageSquare,
   LockKeyhole,
   AlertCircle,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -40,11 +41,12 @@ const adminNavItems: NavItem[] = [
   { icon: CalendarDays, label: 'Ҳозиршавии ҳафтаина', path: '/admin/attendance/weekly' },
   { icon: AlertCircle, label: 'Дарсҳои Нашуда', path: '/admin/attendance/missing' },
   { icon: CalendarDays, label: 'Баҳоҳои ҳафтаина', path: '/admin/grades/weekly' },
-  { icon: MessageSquare, label: 'Эзоҳҳо', path: '/admin/noutes' },
   { icon: Calendar, label: 'Ҷадвали ҳафтаина', path: '/admin/schedule' },
   { icon: ClipboardList, label: 'Амалҳои Система', path: '/admin/logs' },
   { icon: Settings, label: 'Танзимот', path: '/admin/settings' },
 ];
+
+
 
 const teacherNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Панел', path: '/teacher' },
@@ -73,7 +75,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems =
-    user?.role === 'admin'
+    user?.role === 'admin' || (user?.role === 'teacher' && user?.isDean)
       ? adminNavItems
       : user?.role === 'teacher'
         ? teacherNavItems

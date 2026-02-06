@@ -20,7 +20,7 @@ import ModalAddGroup from "@/components/shared/modalAddGroupModal";
 import { EditGroupModal } from "@/components/shared/editGroupModal";
 import { Link } from "react-router-dom";
 type User = {
-  role: "admin" | "teacher" | "student";
+  role: "admin" | "teacher" | "student" | "mudir";
 };
 export default function Groups() {
   let [groups, setGroups] = useState([]);
@@ -34,7 +34,10 @@ export default function Groups() {
 
   async function getGroups() {
     try {
-      let { data } = await axios.get(`${apiUrl}/groups`);
+      const token = localStorage.getItem("token");
+      let { data } = await axios.get(`${apiUrl}/groups`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setGroups(data);
     } catch (error) {
       console.error(error);
@@ -43,7 +46,10 @@ export default function Groups() {
 
   async function deleteGroup(id: any) {
     try {
-      await axios.delete(`${apiUrl}/groups/${id}`);
+      const token = localStorage.getItem("token");
+      await axios.delete(`${apiUrl}/groups/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       getGroups();
     } catch (error) {
       console.error(error);
@@ -179,10 +185,16 @@ export default function Groups() {
                       <Link to={`/admin/journal/group/${group._id}`}>
                         <FileText className="w-4 h-4 mr-1" />
                         Журнал
-                      </Link>) : <Link to={`/teacher/journal/group/${group._id}`}>
-                      <FileText className="w-4 h-4 mr-1" />
-                      Журнал
-                    </Link>}
+                      </Link>)
+                      : user?.role === "mudir" ? (
+                        <Link to={`/mudir/journal/group/${group._id}`}>
+                          <FileText className="w-4 h-4 mr-1" />
+                          Журнал
+                        </Link>)
+                        : <Link to={`/teacher/journal/group/${group._id}`}>
+                          <FileText className="w-4 h-4 mr-1" />
+                          Журнал
+                        </Link>}
                   </Button>
                   {user?.role == "admin" ? (
                     <Button

@@ -38,7 +38,6 @@ import TeacherProfile from "./pages/profiles/TeacherProfile";
 import JournalEntryPage from "./pages/attendance/JournalEntryPage";
 import JournalByGroupPage from "./pages/attendance/DailyAttendance";
 import WeeklyGradePage from "./pages/admin/weeklyGrade";
-import AdminNotesPage from "./pages/admin/feedback";
 import Logs from "./pages/admin/Logs";
 
 const queryClient = new QueryClient();
@@ -69,7 +68,12 @@ function ProtectedRoute({
 
   // 🚫 Агар role иҷозат надорад
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to={`/${user.role}`} replace />;
+    // Special case for Deans accessing Admin routes
+    if (user.role === "teacher" && user.isDean && allowedRoles.includes("admin")) {
+      // Allow access
+    } else {
+      return <Navigate to={`/${user.role}`} replace />;
+    }
   }
 
   return <>{children}</>;
@@ -108,14 +112,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/admin/noutes"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <AdminNotesPage />
-          </ProtectedRoute>
-        }
-      />
+
       <Route
         path="/admin/logs"
         element={
@@ -133,6 +130,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/subjects"
         element={
@@ -213,6 +211,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+
 
       {/* Teacher Routes */}
       <Route
@@ -312,6 +312,7 @@ function AppRoutes() {
         }
       />
 
+
       {/* Student Routes */}
       <Route
         path="/student"
@@ -363,7 +364,7 @@ function AppRoutes() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <ToastContainer /> 
+      <ToastContainer />
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />

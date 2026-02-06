@@ -16,6 +16,7 @@ interface Teacher {
     phone?: string;
     subjects: string[];
     dateOfBirth?: string;
+    isDean?: boolean;
 }
 
 interface EditTeacherProps {
@@ -44,6 +45,7 @@ export default function EditTeacherModal({ open, onClose, onSubmit, teacher }: E
         phone: "",
         dateOfBirth: "",
         subjects: [] as string[],
+        isDean: false,
     });
 
     useEffect(() => {
@@ -55,6 +57,7 @@ export default function EditTeacherModal({ open, onClose, onSubmit, teacher }: E
                 phone: teacher.phone || "",
                 dateOfBirth: teacher.dateOfBirth ? new Date(teacher.dateOfBirth).toISOString().split('T')[0] : "",
                 subjects: teacher.subjects || [],
+                isDean: teacher.isDean || false,
             });
         }
     }, [teacher]);
@@ -123,6 +126,19 @@ export default function EditTeacherModal({ open, onClose, onSubmit, teacher }: E
                         onChange={handleChange}
                         placeholder="Рамзи навро ворид кунед"
                     />
+                </div>
+
+                {/* Is Dean Checkbox */}
+                <div className="flex items-center space-x-2 pt-2">
+                    <input
+                        type="checkbox"
+                        id="isDean"
+                        name="isDean"
+                        checked={form.isDean}
+                        onChange={(e) => setForm({ ...form, isDean: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <Label htmlFor="isDean" className="cursor-pointer">Мудир кафедра (Dean)</Label>
                 </div>
 
                 {/* Phone */}
