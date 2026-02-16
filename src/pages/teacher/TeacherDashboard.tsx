@@ -103,24 +103,18 @@ export default function TeacherDashboard() {
           locale={ru}
           className="rounded-xl border shadow-none w-full"
           disabled={(date) => {
-            // Logic: Disable if date is NOT in current week (Mon-Sun)
+            // Logic: Disable if date is in FUTURE WEEK (Next Monday onwards)
             const now = new Date();
             const currentDay = now.getDay(); // 0=Sun, 1=Mon ...
 
-            // Find Monday of this week
-            // If Sunday (0), go back 6 days. Else go back (day-1) days.
-            const diffToMon = currentDay === 0 ? 6 : currentDay - 1;
+            // Calculate Sunday of Current Week
+            const diffToSun = currentDay === 0 ? 0 : 7 - currentDay;
+            const currentWeekSunday = new Date(now);
+            currentWeekSunday.setDate(now.getDate() + diffToSun);
+            currentWeekSunday.setHours(23, 59, 59, 999);
 
-            const monday = new Date(now);
-            monday.setDate(now.getDate() - diffToMon);
-            monday.setHours(0, 0, 0, 0);
-
-            const sunday = new Date(monday);
-            sunday.setDate(monday.getDate() + 6);
-            sunday.setHours(23, 59, 59, 999);
-
-            // Allow selection only between Monday and Sunday
-            return date < monday || date > sunday;
+            // Disable if date is AFTER current week's Sunday
+            return date > currentWeekSunday;
           }}
         />
       </div>

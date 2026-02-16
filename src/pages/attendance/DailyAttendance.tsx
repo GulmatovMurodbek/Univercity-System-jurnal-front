@@ -53,7 +53,7 @@ export default function JournalByGroupPage() {
   const weekEnd = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
 
   const isDateInCurrentWeek = (date: Date) => {
-    return isWithinInterval(date, { start: weekStart, end: weekEnd });
+    return date <= weekEnd; // Allow past dates + current week
   };
 
   const isSelectedDateInCurrentWeek = isDateInCurrentWeek(selectedDate);

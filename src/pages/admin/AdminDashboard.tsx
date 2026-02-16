@@ -52,7 +52,8 @@ export default function AdminDashboard() {
   const currentWeekEnd = endOfWeek(today, { weekStartsOn: 1 });   // Sunday
 
   const isDateInCurrentWeek = (date: Date) => {
-    return isWithinInterval(date, { start: currentWeekStart, end: currentWeekEnd });
+    // Logic: Allow all past dates up to the end of the current week (Sunday)
+    return date <= currentWeekEnd;
   };
 
   const [teacherData, setTeacherData] = useState({
