@@ -191,7 +191,7 @@ export default function Groups() {
                           <FileText className="w-4 h-4 mr-1" />
                           Журнал
                         </Link>)
-                        : <Link to={`/teacher/journal/group/${group._id}`}>
+                        : <Link to={`/teacher/grades/weekly/${group._id}`}>
                           <FileText className="w-4 h-4 mr-1" />
                           Журнал
                         </Link>}

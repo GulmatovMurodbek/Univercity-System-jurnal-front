@@ -148,7 +148,6 @@ export default function TeacherDashboard() {
             </Avatar>
           </div>
         </header>
-
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
@@ -208,6 +207,56 @@ export default function TeacherDashboard() {
             {/* Mobile Calendar: Show ONLY on small screens (lg:hidden) */}
             <div className="block lg:hidden">
               {CalendarWidget}
+            </div>
+
+            {/* My Groups Section */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-600" />
+                  Гурӯҳҳои ман
+                </h2>
+                <Button variant="ghost" className="text-indigo-600 hover:bg-indigo-50" onClick={() => navigate("/teacher/groups")}>
+                  Ҳамаи гурӯҳҳо <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {loading ? (
+                  [1, 2, 3].map(i => <Skeleton key={i} className="h-32 w-full rounded-2xl" />)
+                ) : data.groups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground col-span-full py-4 text-center bg-white dark:bg-slate-800 rounded-2xl border border-dashed">
+                    Ягон гурӯҳи фаъол ёфт нашуд
+                  </p>
+                ) : (
+                  data.groups.map((group: any) => (
+                    <Card
+                      key={group._id}
+                      className="border-none shadow-sm bg-white dark:bg-slate-800 hover:shadow-md transition-all cursor-pointer group hover:-translate-y-1"
+                      onClick={() => navigate(`/teacher/grades/weekly/${group._id}`)}
+                    >
+                      <CardContent className="p-4 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                            <Building2 className="w-5 h-5" />
+                          </div>
+                          <Badge variant="secondary" className="text-[10px] font-bold">
+                            Курси {group.course}
+                          </Badge>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-indigo-600 transition-colors">
+                            {group.name}
+                          </h3>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">
+                            {group.faculty}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Today's Schedule Section */}

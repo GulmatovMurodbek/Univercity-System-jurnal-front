@@ -344,12 +344,7 @@ export default function JournalEntryPage() {
                 <TableRow>
                   <TableHead className="w-12 text-center">#</TableHead>
                   <TableHead>Ному насаб</TableHead>
-                  <TableHead className="text-center">Ҳозирӣ</TableHead>
-                  <TableHead className="text-center">Омодагӣ</TableHead>
-                  {lessonType !== "lecture" && (
-                    <TableHead className="text-center">Вазифа</TableHead>
-                  )}
-
+                  <TableHead className="text-center w-48">Ҳозирӣ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -364,7 +359,7 @@ export default function JournalEntryPage() {
                     <TableCell className="font-semibold text-lg">
                       {student?.studentId?.fullName}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-center">
                       <Select
                         value={student.attendance || "present"}
                         disabled={user?.role === "mudir"}
@@ -376,7 +371,7 @@ export default function JournalEntryPage() {
                           )
                         }
                       >
-                        <SelectTrigger className="w-36">
+                        <SelectTrigger className="w-40 mx-auto">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -385,56 +380,6 @@ export default function JournalEntryPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <Select
-                        value={student.preparationGrade ? String(student.preparationGrade) : ""}
-                        disabled={user?.role === "mudir"}
-                        onValueChange={(v) =>
-                          updateStudent(
-                            student?.studentId?._id,
-                            "preparationGrade",
-                            Number(v)
-                          )
-                        }
-                      >
-                        <SelectTrigger className="w-24 mx-auto">
-                          <SelectValue placeholder="-" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1</SelectItem>
-                          <SelectItem value="1.5">1.5</SelectItem>
-                          <SelectItem value="2">2</SelectItem>
-                          <SelectItem value="2.5">2.5</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-
-                    {lessonType !== "lecture" && (
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="5"
-                          step="1"
-                          disabled={user?.role === "mudir"}
-                          className="w-24 text-center font-medium disabled:opacity-50 mx-auto"
-                          value={student.taskGrade ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (
-                              val === "" ||
-                              (Number(val) >= 0 && Number(val) <= 5)
-                            ) {
-                              updateStudent(
-                                student.studentId._id,
-                                "taskGrade",
-                                val === "" ? null : Number(val)
-                              );
-                            }
-                          }}
-                        />
-                      </TableCell>
-                    )}
 
                   </TableRow>
                 ))}

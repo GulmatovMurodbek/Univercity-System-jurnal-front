@@ -1,9 +1,10 @@
-// src/pages/admin/AdminWeeklyGradePage.tsx
 import React, { useState, useEffect, useMemo, memo } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { GraduationCap, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { GraduationCap, BookOpen, ChevronDown, ChevronUp, Search } from "lucide-react";
 import axios from "axios";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -13,6 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { Loader2, Save, X } from "lucide-react";
+import { differenceInWeeks, startOfDay } from "date-fns";
 
 // --- TYPES ---
 interface GradeRecord {
@@ -176,7 +182,17 @@ const StudentCard = memo(({ data, onClick }: { data: any, onClick: (s: any) => v
 });
 
 // 2. Weekly Breakdown Component (Detailed Row)
-const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number, student: any, subjectId: string }) => {
+const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, editingData, onUpdateField, canEdit }: {
+  weekNum: number,
+  student: any,
+  subjectId: string,
+  onEdit?: (w: number) => void,
+  isEditing?: boolean,
+  editingData?: any[],
+  onUpdateField?: (lessonKey: string, field: string, value: any) => void,
+  canEdit?: boolean
+}) => {
+  const { user } = useAuth();
   // Logic to calculate specific breakdown values
   const weekDays = student.gradesRaw?.filter((d: any) => d.weekNumber === weekNum) || [];
   const relevantLessons: any[] = [];
@@ -184,7 +200,7 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number
   weekDays.forEach((day: any) => {
     day.lessons.forEach((l: any) => {
       if (String(l.subjectId) === String(subjectId)) {
-        relevantLessons.push({ ...l, date: day.date, weekday: day.weekday });
+        relevantLessons.push({ ...l, date: day.date, weekday: day.weekday, dateStr: day.dateStr });
       }
     });
   });
@@ -199,25 +215,18 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number
     );
   }
 
-  // 1. Attendance
-  const attendedCount = relevantLessons.filter(l => l.attendance === 'present').length;
+  // Attendance
+  const attendedCount = relevantLessons.filter(l => l.attendance === 'present' || l.attendance === 'late').length;
   const attendanceScore = (attendedCount / totalLessons) * 5;
 
-  // 2. Preparation
-  const sumPrep = relevantLessons.reduce((acc, l) => acc + (l.preparationGrade || 0), 0);
-  const avgPrep = sumPrep / totalLessons;
-  const preparationScore = (avgPrep / 5) * 2.5;
+  // Single prep grade for the week: value from the first lesson
+  const weekPrepGrade: number = relevantLessons.find(l => l.preparationGrade != null && l.preparationGrade !== undefined)?.preparationGrade ?? 0;
+  const preparationScore = weekPrepGrade;
 
-  // 3. Assignment (Practical/Lab only)
-  const practicalLessons = relevantLessons.filter(l => l.lessonType === 'practice' || l.lessonType === 'lab');
-  const assignCount = practicalLessons.length;
-  let assignmentScore = 0;
-  let avgAssign = 0;
-  if (assignCount > 0) {
-    const sumAssign = practicalLessons.reduce((acc, l) => acc + (l.taskGrade || 0), 0);
-    avgAssign = sumAssign / assignCount;
-    assignmentScore = (avgAssign / 5) * 5;
-  }
+  // Single assignment grade: from first practice/lab lesson
+  const firstPractical = relevantLessons.find(l => l.lessonType === 'practice' || l.lessonType === 'lab');
+  const weekTaskGrade: number = firstPractical?.taskGrade ?? 0;
+  const assignmentScore = weekTaskGrade;
 
   const weeklyTotal = attendanceScore + preparationScore + assignmentScore;
 
@@ -241,10 +250,16 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number
     }
   };
 
+  // The first editItem for prep/task editing
+  const firstEditItem = editingData && editingData.length > 0 ? editingData[0] : null;
+
   return (
-    <div className="border rounded-xl overflow-hidden bg-white mb-4 shadow-sm hover:shadow-md transition-all">
+    <div className={cn(
+      "border rounded-xl overflow-hidden bg-white mb-4 shadow-sm hover:shadow-md transition-all font-sans",
+      isEditing && "ring-2 ring-indigo-500 border-indigo-200 shadow-indigo-100"
+    )}>
       {/* Header */}
-      <div className="bg-slate-50 p-4 border-b flex justify-between items-center">
+      <div className={cn("p-4 border-b flex justify-between items-center", isEditing ? "bg-indigo-50/50" : "bg-slate-50")}>
         <h3 className="font-bold text-lg text-slate-800">Ҳафтаи {weekNum}</h3>
         <div className="flex items-center gap-3">
           <div className="hidden md:block text-xs text-muted-foreground mr-2 font-mono bg-slate-100 px-2 py-1 rounded">
@@ -257,11 +272,32 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number
           )}>
             Total: {weeklyTotal.toFixed(2)}
           </Badge>
+          {onEdit && !isEditing && canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-indigo-600 h-8 font-bold hover:bg-indigo-50"
+              onClick={() => {
+                // Check if user is authorized for this specific week/subject
+                const isAuthorized = user?.role === 'admin' || relevantLessons.some(l => String(l.teacherId) === String(user?._id));
+                if (isAuthorized) {
+                  onEdit(weekNum);
+                } else {
+                  toast.error("Шумо танҳо дарсҳои худатонро таҳрир карда метавонед");
+                }
+              }}
+            >
+              Таҳрир
+            </Button>
+          )}
+          {onEdit && !isEditing && !canEdit && (
+            <span className="text-[10px] text-slate-400 font-medium px-2">🔒 Танҳо хондан</span>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-        {/* Attendance Column */}
+        {/* Attendance Column — per lesson */}
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
             <div className="p-1.5 rounded-md bg-blue-100 text-blue-700">
@@ -271,30 +307,57 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number
           </div>
 
           <div className="space-y-2">
-            {relevantLessons.map((l, idx) => (
-              <div key={idx} className="flex justify-between items-center text-sm p-2 rounded bg-slate-50 border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase w-10 text-center", getLessonTypeColor(l.lessonType))}>
-                    {getLessonTypeLabel(l.lessonType)}
-                  </span>
-                  <span className="text-xs text-slate-500 font-medium">{l.date}</span>
+            {relevantLessons.map((l, idx) => {
+              const editItem = editingData?.find(ed => ed.date === l.dateStr && ed.slot === l.lessonSlot);
+              return (
+                <div key={idx} className="flex flex-col gap-2 p-2 rounded bg-slate-50 border border-slate-100">
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase w-10 text-center", getLessonTypeColor(l.lessonType))}>
+                        {getLessonTypeLabel(l.lessonType)}
+                      </span>
+                      <span className="text-xs text-slate-500 font-medium">{l.date}</span>
+                    </div>
+                    {!isEditing && (
+                      l.attendance ? (
+                        <Badge variant="outline" className={cn("border-0 font-medium",
+                          l.attendance === 'present' ? "bg-emerald-100 text-emerald-700" :
+                            "bg-rose-100 text-rose-700"
+                        )}>
+                          {l.attendance === 'present' ? "Ҳозир" : "Ғоиб"}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground mr-2">—</span>
+                      )
+                    )}
+                  </div>
+                  {isEditing && editItem && (
+                    <Select
+                      value={editItem.attendance}
+                      onValueChange={(v) => onUpdateField?.(`${l.dateStr}_${l.lessonSlot}`, 'attendance', v)}
+                    >
+                      <SelectTrigger className="h-8 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="present">✅ Ҳозир</SelectItem>
+                        <SelectItem value="absent">❌ Ғоиб</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
-                <Badge variant="outline" className={cn("border-0 font-medium", l.attendance === 'present' ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700")}>
-                  {l.attendance === 'present' ? "Present" : "Absent"}
-                </Badge>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="mt-4 pt-3 border-t border-dashed">
             <p className="text-xs text-slate-500 text-center font-mono bg-slate-50 p-2 rounded">
-              {attendedCount} attended out of {totalLessons} lessons<br />
-              ({attendedCount} ÷ {totalLessons}) × 5 = <span className="font-bold text-foreground">{attendanceScore.toFixed(2)}</span>
+              {attendedCount} / {totalLessons} × 5 = <span className="font-bold text-foreground">{attendanceScore.toFixed(2)}</span>
             </p>
           </div>
         </div>
 
-        {/* Preparation Column */}
+        {/* Preparation Column — ONE value per week */}
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
             <div className="p-1.5 rounded-md bg-purple-100 text-purple-700">
@@ -303,30 +366,46 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number
             <h4 className="font-semibold text-sm">Preparation (Max 2.5)</h4>
           </div>
 
-          <div className="space-y-2">
-            {relevantLessons.map((l, idx) => (
-              <div key={idx} className="flex justify-between items-center text-sm p-2 rounded bg-slate-50 border border-slate-100">
-                <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase w-10 text-center", getLessonTypeColor(l.lessonType))}>
-                  {getLessonTypeLabel(l.lessonType)}
-                </span>
-                <Badge variant="secondary" className="bg-white border shadow-sm font-mono">{l.preparationGrade || 0}</Badge>
+          <div className="flex flex-col items-center justify-center py-6 gap-4">
+            {isEditing && firstEditItem ? (
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs text-violet-600 font-semibold uppercase">Тайёрӣ</span>
+                <Select
+                  value={String(firstEditItem.preparationGrade ?? "")}
+                  onValueChange={(v) => {
+                    const firstLesson = relevantLessons[0];
+                    if (firstLesson) {
+                      onUpdateField?.(`${firstLesson.dateStr}_${firstLesson.lessonSlot}`, 'preparationGrade', v);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-12 w-24 text-center text-xl font-bold border-2 border-violet-300 bg-violet-50">
+                    <SelectValue placeholder="–" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="1.5">1.5</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                    <SelectItem value="2.5">2.5</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            ))}
+            ) : (
+              <div className="text-center">
+                <div className="text-4xl font-bold text-violet-600 mb-1">{weekPrepGrade}</div>
+                <div className="text-xs text-slate-400">із 2.5 балов</div>
+              </div>
+            )}
           </div>
 
-          <div className="mt-4 pt-3 border-t border-dashed text-center">
-            <div className="bg-slate-50 p-2 rounded">
-              <p className="text-xs text-slate-500 font-mono mb-1">
-                Average of lesson preparation grades
-              </p>
-              <p className="text-xs text-slate-500 font-mono">
-                ({avgPrep.toFixed(2)} / 5) × 2.5 = <span className="font-bold text-foreground">{preparationScore.toFixed(2)}</span>
-              </p>
-            </div>
+          <div className="mt-auto pt-3 border-t border-dashed">
+            <p className="text-xs text-slate-500 text-center font-mono bg-slate-50 p-2 rounded">
+              Балли тайёрӣ: <span className="font-bold text-foreground">{preparationScore.toFixed(2)}</span> / 2.5
+            </p>
           </div>
         </div>
 
-        {/* Assignment Column */}
+        {/* Assignment Column — ONE value per week */}
         <div className="p-4 space-y-3 bg-orange-50/30">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
             <div className="p-1.5 rounded-md bg-orange-100 text-orange-700">
@@ -335,38 +414,44 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number
             <h4 className="font-semibold text-sm">Assignment (Max 5)</h4>
           </div>
 
-          <div className="space-y-2 min-h-[40px]">
-            {practicalLessons.length > 0 ? practicalLessons.map((l, idx) => (
-              <div key={idx} className="flex justify-between items-center text-sm p-2 rounded bg-white border border-orange-100 shadow-sm">
-                <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase w-10 text-center", getLessonTypeColor(l.lessonType))}>
-                  {getLessonTypeLabel(l.lessonType)}
-                </span>
-                <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 font-mono">
-                  {l.taskGrade || 0}
-                </Badge>
+          <div className="flex flex-col items-center justify-center py-6 gap-4">
+            {isEditing && firstEditItem ? (
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs text-amber-600 font-semibold uppercase">Вазифа</span>
+                <Select
+                  value={String(firstEditItem.taskGrade ?? "")}
+                  onValueChange={(v) => {
+                    const firstLesson = relevantLessons[0];
+                    if (firstLesson) {
+                      onUpdateField?.(`${firstLesson.dateStr}_${firstLesson.lessonSlot}`, 'taskGrade', v);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-12 w-24 text-center text-xl font-bold border-2 border-amber-300 bg-amber-50">
+                    <SelectValue placeholder="–" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0</SelectItem>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                    <SelectItem value="3">3</SelectItem>
+                    <SelectItem value="4">4</SelectItem>
+                    <SelectItem value="5">5</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )) : (
-              <div className="flex flex-col items-center justify-center py-4 text-slate-400">
-                <span className="text-xs italic">Only Practical/Lab</span>
+            ) : (
+              <div className="text-center">
+                <div className="text-4xl font-bold text-amber-600 mb-1">{weekTaskGrade}</div>
+                <div className="text-xs text-slate-400">із 5 балов</div>
               </div>
             )}
           </div>
 
-          <div className="mt-4 pt-3 border-t border-dashed text-center">
-            <div className="bg-white/50 p-2 rounded">
-              {practicalLessons.length > 0 ? (
-                <>
-                  <p className="text-xs text-slate-500 font-mono mb-1">
-                    Average of assignment grades
-                  </p>
-                  <p className="text-xs text-slate-500 font-mono">
-                    ({avgAssign.toFixed(2)} / 5) × 5 = <span className="font-bold text-foreground">{assignmentScore.toFixed(2)}</span>
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-slate-500 font-mono">N/A = 0</p>
-              )}
-            </div>
+          <div className="mt-auto pt-3 border-t border-dashed">
+            <p className="text-xs text-slate-500 text-center font-mono bg-slate-50 p-2 rounded">
+              Assignment = <span className="font-bold text-foreground">{assignmentScore.toFixed(2)}</span>
+            </p>
           </div>
         </div>
       </div>
@@ -374,168 +459,194 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId }: { weekNum: number
   );
 });
 
-// 2. Memoized Student Modal
-const StudentModal = memo(({ student, subjectName, subjectId, onClose }: { student: any, subjectName: string, subjectId: string | undefined, onClose: () => void }) => {
-  if (!student) return null;
-
-  const initials = getInitials(student.fullName);
-
-  return (
-    <Dialog open={!!student} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl overflow-hidden p-0 border-0 shadow-2xl bg-card/95 backdrop-blur-xl">
-        <DialogHeader className="p-6 pb-2 border-b bg-muted/10 hidden">
-          <DialogTitle>{student.fullName}</DialogTitle>
-        </DialogHeader>
-
-        {/* Modal Header */}
-        <div className="bg-muted/30 border-b p-8 pb-12">
-          <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
-            <Avatar className="h-24 w-24 border-4 border-background shadow-xl">
-              <AvatarFallback className="text-3xl bg-primary/10 text-primary">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="space-y-2">
-              <Badge variant="outline" className="bg-background/50 backdrop-blur border-primary/20 text-primary mb-2 mx-auto md:mx-0 w-fit">
-                Профили донишҷӯ
-              </Badge>
-              <h2 className="text-3xl font-bold tracking-tight">
-                {student.fullName}
-              </h2>
-              <p className="text-lg text-muted-foreground font-medium">
-                {subjectName}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Stat Cards - Blocks */}
-        <div className="-mt-8 px-8 grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          {[
-            { label: "Блоки 1 (Ҳаф 1-8)", value: student.block1Score + " / 100", color: "bg-blue-500" },
-            { label: "Блоки 2 (Ҳаф 9-16)", value: student.block2Score + " / 100", color: "bg-purple-500" },
-            { label: "Ҷамъ", value: student.totalAvg.toFixed(2), color: "bg-emerald-500" },
-          ].map((stat, i) => (
-            <div key={i} className="bg-card border rounded-xl p-4 shadow-lg flex items-center justify-between group hover:border-primary/50 transition-colors">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase">{stat.label}</p>
-                <h4 className="text-2xl font-bold mt-1">{stat.value}</h4>
-              </div>
-              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md", stat.color)}>
-                <GraduationCap className="h-5 w-5" />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Table Area */}
-        <ScrollArea className="max-h-[50vh] px-8 pb-8">
-          <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            Таърихи пешрафт (Муфассал)
-          </h4>
-          <div className="rounded-xl border bg-card/50 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  <th className="p-4 text-left font-semibold text-muted-foreground w-20">Ҳафта</th>
-                  <th className="p-4 text-left font-semibold text-muted-foreground">Дарсҳо (Баҳоҳо)</th>
-                  <th className="p-4 text-center font-semibold text-muted-foreground w-32">Балл (Max 12.5)</th>
-                  <th className="p-4 text-right font-semibold text-muted-foreground w-24">Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 16 }).map((_, i) => {
-                  const weekNum = i + 1;
-                  const weeklyScore = student.weeklyAverages[i] || 0;
-
-                  const weekDays = student.gradesRaw?.filter((d: any) => d.weekNumber === weekNum) || [];
-                  const relevantLessons: any[] = [];
-
-                  // Collect relevant lessons for display context
-                  weekDays.forEach((day: any) => {
-                    day.lessons.forEach((l: any) => {
-                      if (String(l.subjectId) === String(subjectId)) {
-                        relevantLessons.push(l);
-                      }
-                    });
-                  });
-
-                  // Render lesson chips
-                  const lessonDisplays = relevantLessons.map((l, idx) => {
-                    if (l.lessonType === "lecture") {
-                      return (
-                        <Badge key={idx} variant="outline" className="bg-slate-50 text-slate-400 border-dashed">
-                          Лек (Att)
-                        </Badge>
-                      );
-                    }
-
-                    const prep = l.preparationGrade !== null ? Number(l.preparationGrade) : 0;
-                    const task = l.taskGrade !== null ? Number(l.taskGrade) : 0;
-                    // Show raw inputs
-                    const label = l.lessonType === "lab" ? "Лаб" : "Ам";
-
-                    return (
-                      <div key={idx} className="flex flex-col items-center">
-                        <Badge variant="secondary" className="mb-1 text-[10px] h-5 px-1 bg-slate-100 text-slate-600 border border-slate-200">
-                          {label}: P{prep}/T{task}
-                        </Badge>
-                      </div>
-                    );
-                  });
-
-                  const hasLessons = relevantLessons.length > 0;
-
-                  return (
-                    <tr key={i} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                      <td className="p-4 font-medium whitespace-nowrap text-muted-foreground">Ҳафтаи {weekNum}</td>
-                      <td className="p-4">
-                        <div className="flex flex-wrap gap-2 items-center">
-                          {hasLessons ? lessonDisplays : <span className="text-xs text-muted-foreground italic">Дарс набуд</span>}
-                        </div>
-                      </td>
-                      <td className="p-4 text-center">
-                        {hasLessons || weeklyScore > 0 ? (
-                          <div className="flex flex-col items-center">
-                            <span className={cn("font-bold text-lg",
-                              weeklyScore >= 11 ? "text-emerald-600" :
-                                weeklyScore >= 8 ? "text-blue-600" :
-                                  weeklyScore >= 6 ? "text-amber-600" : "text-rose-600"
-                            )}>{weeklyScore.toFixed(2)}</span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="p-4 text-right">
-                        {hasLessons || weeklyScore > 0 ? (
-                          weeklyScore >= 11 ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-0">Аъло</Badge> :
-                            weeklyScore >= 8 ? <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">Хуб</Badge> :
-                              weeklyScore >= 6 ? <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-0">Қаноат</Badge> :
-                                <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-200 border-0">Бад</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground border-dashed bg-transparent">Нест</Badge>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
-  );
-});
 
 // 3. Memoized Weekly List (Detailed Accordion)
-// 2b. Memoized Student Modal (Refactored for Detail View)
-const StudentModalRefactored = memo(({ student, subjectName, subjectId, onClose }: { student: any, subjectName: string, subjectId: string | undefined, onClose: () => void }) => {
+const WeeklyGradesList = memo(({ students, subjectId, currentWeek, userRole }: { students: any[], subjectId: string, currentWeek: number, userRole: string | undefined }) => {
+  return (
+    <div className="space-y-6">
+      <Card className="border-0 shadow-xl bg-card/60 backdrop-blur-xl overflow-hidden">
+        <CardContent className="p-0">
+          <div className="bg-gradient-to-r from-primary/10 to-transparent p-6 border-b">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-primary" />
+              Ҷадвали ҳафтагӣ ва баҳоҳо
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">Баҳоҳои донишҷӯён барои ҳар ҳафта дар шакли рӯйхати кушодашаванда</p>
+          </div>
+
+          <ScrollArea className="h-[calc(100vh-400px)]">
+            <div className="p-6">
+              <Accordion type="single" collapsible className="w-full space-y-4">
+                {students.map((student, index) => (
+                  <AccordionItem
+                    key={student._id || index}
+                    value={`item-${index}`}
+                    className="border rounded-xl bg-card px-4 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <AccordionTrigger className="hover:no-underline py-4">
+                      {/* ... Header Content ... */}
+                      <div className="flex items-center gap-4 w-full text-left">
+                        <Avatar className="h-10 w-10 border-2 border-muted">
+                          <AvatarFallback className="font-bold text-primary">{getInitials(student.fullName)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-bold text-base">{student.fullName}</p>
+                          <p className="text-sm font-medium text-muted-foreground">Ҷамъ: <span className="text-foreground">{student.totalAvg.toFixed(2)}</span></p>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 pt-2 border-t mt-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                        {Array.from({ length: 16 }).map((_, weekIndex) => {
+                          const weekNum = weekIndex + 1;
+                          if ((userRole === 'teacher' || userRole === 'director') && weekNum > currentWeek) return null;
+
+                          return (
+                            <div key={weekNum} className="p-3 border rounded-lg bg-muted/20 flex justify-between items-center group hover:border-primary/50 transition-colors">
+                              <span className="text-sm font-medium">Ҳафтаи {weekNum}</span>
+                              <Badge variant={student.weeklyAverages[weekIndex] > 0 ? "secondary" : "outline"} className="font-bold">
+                                {student.weeklyAverages[weekIndex]?.toFixed(2) || "0.00"}
+                              </Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </div>
+  );
+});
+const getCurrentWeekNum = (semesterStart: string | undefined, course?: number, semester?: number): number => {
+  // Course 4, Semester 2 starts Jan 19
+  let startDate: Date;
+  if (semesterStart) {
+    startDate = new Date(semesterStart);
+  } else if (course === 4 && semester === 2) {
+    const year = new Date().getFullYear();
+    startDate = new Date(`${year}-01-19`);
+  } else if (semester === 2) {
+    const year = new Date().getFullYear();
+    startDate = new Date(`${year}-02-01`);
+  } else {
+    const year = new Date().getFullYear();
+    startDate = new Date(`${year}-09-01`);
+  }
+  const now = new Date();
+  const diffMs = now.getTime() - startDate.getTime();
+  if (diffMs < 0) return 0; // Semester hasn't started
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return Math.min(16, Math.floor(diffDays / 7) + 1);
+};
+
+const StudentModalRefactored = memo(({ student, subjectName, subjectId, groupId, semesterStart, course, semester, onSave, onClose }: {
+  student: any,
+  subjectName: string,
+  subjectId: string | undefined,
+  groupId: string,
+  semesterStart?: string,
+  course?: number,
+  semester?: number,
+  onSave?: () => void,
+  onClose: () => void
+}) => {
+  const { user } = useAuth();
   if (!student) return null;
 
+  const [editingWeek, setEditingWeek] = useState<number | null>(null);
+  const [editingData, setEditingData] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  // Current week: can edit current week and past, but not future
+  const currentWeek = getCurrentWeekNum(semesterStart, course, semester);
+
   const initials = getInitials(student.fullName);
+
+  const handleEditWeek = (weekNum: number) => {
+    const weekDays = student.gradesRaw?.filter((d: any) => d.weekNumber === weekNum) || [];
+    const relevantLessons: any[] = [];
+
+    weekDays.forEach((day: any) => {
+      day.lessons.forEach((l: any) => {
+        if (String(l.subjectId) === String(subjectId)) {
+          relevantLessons.push({
+            date: day.dateStr,
+            slot: l.lessonSlot,
+            attendance: l.attendance || 'present',
+            preparationGrade: l.preparationGrade ?? "",
+            taskGrade: l.taskGrade ?? "",
+          });
+        }
+      });
+    });
+
+    setEditingData(relevantLessons);
+    setEditingWeek(weekNum);
+  };
+
+  const handleUpdateField = (lessonKey: string, field: string, value: any) => {
+    const [date, slot] = lessonKey.split('_');
+    setEditingData(prev => prev.map(item =>
+      (item.date === date && String(item.slot) === slot) ? { ...item, [field]: value } : item
+    ));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem("token");
+      const updates = editingData.map(item => ({
+        groupId: groupId,
+        subjectId: subjectId,
+        date: item.date,
+        slot: item.slot,
+        students: [{
+          studentId: student._id,
+          attendance: item.attendance,
+          preparationGrade: item.preparationGrade === "" ? null : Number(item.preparationGrade),
+          taskGrade: item.taskGrade === "" ? null : Number(item.taskGrade)
+        }]
+      }));
+
+      // Authorization check (Client side)
+      if (user?.role !== 'admin') {
+        const canSaveAll = updates.every(u => {
+          // Find original lesson teacherId from student data
+          const weekNum = editingWeek;
+          const dayData = student.gradesRaw?.find((d: any) => d.dateStr === u.date);
+          const lesson = dayData?.lessons?.find((l: any) => l.lessonSlot === u.slot && String(l.subjectId) === String(u.subjectId));
+
+          const tid = (lesson?.teacherId as any)?._id || lesson?.teacherId;
+          const uid = user?.id || user?._id;
+          return String(tid) === String(uid);
+        });
+
+        if (!canSaveAll) {
+          toast.error("Шумо танҳо дарсҳои ба худатон вабастаро таҳрир карда метавонед");
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      await axios.post(`${apiUrl}/journal/bulk-update`, { updates }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("Тағйиротҳо бомуваффақият сабт шуданд");
+      setEditingWeek(null);
+      onSave?.();
+    } catch (err) {
+      console.error(err);
+      toast.error("Хатогӣ ҳангоми сабти тағйирот");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <Dialog open={!!student} onOpenChange={(open) => !open && onClose()}>
@@ -545,59 +656,82 @@ const StudentModalRefactored = memo(({ student, subjectName, subjectId, onClose 
         </DialogHeader>
 
         {/* Modal Scroll Container */}
-        <ScrollArea className="flex-1">
-          <div className="p-6">
-            {/* Modal Header */}
-            <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left mb-8">
-              <Avatar className="h-24 w-24 border-4 border-background shadow-xl">
-                <AvatarFallback className="text-3xl bg-primary/10 text-primary">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-2">
-                <Badge variant="outline" className="bg-background/50 backdrop-blur border-primary/20 text-primary mb-2 mx-auto md:mx-0 w-fit">
-                  Профили донишҷӯ
-                </Badge>
-                <h2 className="text-3xl font-bold tracking-tight">
-                  {student.fullName}
-                </h2>
-                <p className="text-lg text-muted-foreground font-medium">
-                  {subjectName}
-                </p>
-              </div>
-            </div>
-
-            {/* Stat Cards - Blocks */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              {[
-                { label: "Блоки 1 (Ҳаф 1-8)", value: student.block1Score + " / 100", color: "bg-blue-500" },
-                { label: "Блоки 2 (Ҳаф 9-16)", value: student.block2Score + " / 100", color: "bg-purple-500" },
-                { label: "Ҷамъ", value: student.totalAvg.toFixed(2), color: "bg-emerald-500" },
-              ].map((stat, i) => (
-                <div key={i} className="bg-card border rounded-xl p-4 shadow-lg flex items-center justify-between group hover:border-primary/50 transition-colors">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase">{stat.label}</p>
-                    <h4 className="text-2xl font-bold mt-1">{stat.value}</h4>
-                  </div>
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md", stat.color)}>
-                    <GraduationCap className="h-5 w-5" />
-                  </div>
+        <ScrollArea className="flex-1 w-full p-6">
+          {/* Modal Header */}
+          <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left mb-8">
+            <Avatar className="h-24 w-24 border-4 border-background shadow-xl">
+              <AvatarFallback className="text-3xl bg-primary/10 text-primary">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-2 flex-1">
+              <div className="flex justify-between items-start">
+                <div>
+                  <Badge variant="outline" className="bg-background/50 backdrop-blur border-primary/20 text-primary mb-2 mx-auto md:mx-0 w-fit">
+                    Профили донишҷӯ
+                  </Badge>
+                  <h2 className="text-3xl font-bold tracking-tight">
+                    {student.fullName}
+                  </h2>
+                  <p className="text-lg text-muted-foreground font-medium">
+                    {subjectName}
+                  </p>
                 </div>
-              ))}
-            </div>
-
-            {/* Detailed Breakdown List */}
-            <div className="space-y-6">
-              <h4 className="font-semibold text-lg flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-primary" />
-                Таърихи пешрафт (Муфассал)
-              </h4>
-
-              <div>
-                {Array.from({ length: 16 }).map((_, i) => (
-                  <WeeklyBreakdown key={i} weekNum={i + 1} student={student} subjectId={subjectId || ""} />
-                ))}
+                {editingWeek && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setEditingWeek(null)} disabled={isSaving}>
+                      Бекор кардан
+                    </Button>
+                    <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                      {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Сабт кардан
+                    </Button>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
+
+          {/* Stat Cards - Blocks */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {[
+              { label: "Блоки 1 (Ҳаф 1-8)", value: student.block1Score + " / 100", color: "bg-blue-500" },
+              { label: "Блоки 2 (Ҳаф 9-16)", value: student.block2Score + " / 100", color: "bg-purple-500" },
+              { label: "Ҷамъ", value: student.totalAvg.toFixed(2), color: "bg-emerald-500" },
+            ].map((stat, i) => (
+              <div key={i} className="bg-card border rounded-xl p-4 shadow-lg flex items-center justify-between group hover:border-primary/50 transition-colors">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase">{stat.label}</p>
+                  <h4 className="text-2xl font-bold mt-1">{stat.value}</h4>
+                </div>
+                <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md", stat.color)}>
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Detailed Breakdown List */}
+          <div className="space-y-6">
+            <h4 className="font-semibold text-lg flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-primary" />
+              Таърихи пешрафт (Муфассал)
+            </h4>
+
+            <div>
+              {Array.from({ length: 16 }).map((_, i) => (
+                <WeeklyBreakdown
+                  key={i}
+                  weekNum={i + 1}
+                  student={student}
+                  subjectId={subjectId || ""}
+                  onEdit={handleEditWeek}
+                  isEditing={editingWeek === (i + 1)}
+                  editingData={editingWeek === (i + 1) ? editingData : undefined}
+                  onUpdateField={handleUpdateField}
+                  canEdit={(i + 1) <= currentWeek}
+                />
+              ))}
             </div>
           </div>
         </ScrollArea>
@@ -606,123 +740,398 @@ const StudentModalRefactored = memo(({ student, subjectName, subjectId, onClose 
   );
 });
 
-const WeeklyGradesList = memo(({ students, subjectId }: { students: any[], subjectId: string }) => {
+const WeeklyBulkEditModal = ({
+  isOpen,
+  onClose,
+  group,
+  subject,
+  students,
+  semester,
+  semesterStart,
+  onSuccess
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  group: { _id: string, name: string };
+  subject: { _id: string, name: string };
+  students: any[];
+  semester: number;
+  semesterStart: string | undefined;
+  onSuccess: () => void;
+}) => {
+  const { user } = useAuth();
+  const [week, setWeek] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [editingData, setEditingData] = useState<any[]>([]);
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  // Initialize editing data when students or week change
+  useEffect(() => {
+    if (isOpen && students.length > 0) {
+      const initialData = students.map(s => {
+        const weekGrades = s.gradesRaw?.filter((d: any) => d.weekNumber === week) || [];
+
+        // Collect all lessons for this subject this week (per-lesson attendance)
+        const lessons: any[] = [];
+        weekGrades.forEach((day: any) => {
+          day.lessons.forEach((l: any) => {
+            if (String(l.subjectId) === String(subject._id)) {
+              lessons.push({
+                date: day.dateStr,
+                dateLabel: day.date,
+                slot: l.lessonSlot || 1,
+                attendance: l.attendance || 'present',
+                lessonType: l.lessonType || 'practice',
+                teacherId: l.teacherId || null,
+              });
+            }
+          });
+        });
+
+        // Get prep/task from first lesson with any data
+        const allLessons = weekGrades.flatMap((d: any) =>
+          d.lessons.filter((l: any) => String(l.subjectId) === String(subject._id))
+        );
+        const firstWithGrade = allLessons[0];
+
+        return {
+          studentId: s._id,
+          fullName: s.fullName,
+          preparationGrade: firstWithGrade?.preparationGrade ?? "",
+          taskGrade: firstWithGrade?.taskGrade ?? "",
+          lessons,
+        };
+      });
+      setEditingData(initialData);
+    }
+  }, [isOpen, students, week, subject._id]);
+
+  const handleAttendanceUpdate = (studentId: string, lessonIdx: number, value: string) => {
+    setEditingData(prev => prev.map(item =>
+      item.studentId === studentId
+        ? { ...item, lessons: item.lessons.map((l: any, i: number) => i === lessonIdx ? { ...l, attendance: value } : l) }
+        : item
+    ));
+  };
+
+  const handleGradeUpdate = (studentId: string, field: string, value: any) => {
+    setEditingData(prev => prev.map(item =>
+      item.studentId === studentId ? { ...item, [field]: value } : item
+    ));
+  };
+
+  // Helper to guess date based on week number if no lesson exists yet
+  const getFallbackDate = (w: number, semStart: string | undefined) => {
+    if (!semStart) return new Date().toISOString().split('T')[0];
+    const start = new Date(semStart);
+    const fallback = new Date(start);
+    fallback.setDate(start.getDate() + (w - 1) * 7);
+    return fallback.toISOString().split('T')[0];
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+
+      // Group by date+slot; apply prep/task to first lesson of each student
+      const lessonMap = new Map<string, { date: string; slot: number; teacherId: string | null; studentsMap: Map<string, any> }>();
+
+      const stableFallbackDate = getFallbackDate(week, semesterStart);
+
+      editingData.forEach(item => {
+        if (item.lessons.length > 0) {
+          item.lessons.forEach((lesson: any, lIdx: number) => {
+            const key = `${lesson.date}_${lesson.slot}`;
+            if (!lessonMap.has(key)) {
+              lessonMap.set(key, {
+                date: lesson.date,
+                slot: lesson.slot,
+                teacherId: lesson.teacherId,
+                studentsMap: new Map()
+              });
+            }
+            const stData: any = {
+              studentId: item.studentId,
+              attendance: lesson.attendance,
+              preparationGrade: item.preparationGrade === "" ? null : Number(item.preparationGrade),
+              taskGrade: item.taskGrade === "" ? null : Number(item.taskGrade),
+            };
+            lessonMap.get(key)!.studentsMap.set(item.studentId, stData);
+          });
+        } else {
+          const key = `${stableFallbackDate}_1`;
+          if (!lessonMap.has(key)) lessonMap.set(key, {
+            date: stableFallbackDate,
+            slot: 1,
+            teacherId: null,
+            studentsMap: new Map()
+          });
+          lessonMap.get(key)!.studentsMap.set(item.studentId, {
+            studentId: item.studentId,
+            attendance: 'present',
+            preparationGrade: item.preparationGrade === "" ? null : Number(item.preparationGrade),
+            taskGrade: item.taskGrade === "" ? null : Number(item.taskGrade),
+          });
+        }
+      });
+
+      const updates = Array.from(lessonMap.values()).map(entry => ({
+        groupId: group._id,
+        subjectId: subject._id,
+        date: entry.date,
+        shift: 1,
+        slot: entry.slot,
+        teacherId: entry.teacherId,
+        students: Array.from(entry.studentsMap.values()),
+      }));
+
+      // Authorization Check (Client side fallback)
+      if (user?.role !== 'admin') {
+        const myUpdates = updates.filter(u => {
+          const tid = (u.teacherId as any)?._id || u.teacherId;
+          const uid = user?.id || user?._id;
+          return String(tid) === String(uid);
+        });
+
+        if (myUpdates.length === 0) {
+          toast.error("Шумо муаллими ягон дарси ин ҳафта нестед, бинобар ин захира карда наметавонед.");
+          setLoading(false);
+          return;
+        }
+        // If some are not mine, we warn but proceed (backend will filter)
+        if (myUpdates.length < updates.length) {
+          toast.warning(`Танҳо ${myUpdates.length} дарси ба шумо тааллуқдошта сабт мешавад.`);
+        }
+      }
+
+      const res = await axios.post(`${apiUrl}/journal/bulk-update`, { updates }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const { saved, studentsCount, errors } = res.data || {};
+
+      // If nothing saved and there are errors, show first error
+      if (Number(saved) === 0 && errors && errors.length > 0) {
+        toast.error(errors[0]);
+        return;
+      }
+
+      const displayCount = studentsCount ?? updates.reduce((a: number, u: any) => a + u.students.length, 0);
+      toast.success(`✅ ${displayCount} нафар барои ҳафтаи ${week} сабт шуд`);
+
+      if (errors && errors.length > 0) {
+        console.warn("Bulk update partial errors:", errors);
+      }
+
+      onClose(); // Close first
+      onSuccess(); // Then refetch
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Хатогӣ ҳангоми сабти баҳоҳо");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const ATTENDANCE_COLORS: Record<string, string> = {
+    present: "text-emerald-700 bg-emerald-50 border-emerald-300",
+    absent: "text-rose-700 bg-rose-50 border-rose-300",
+  };
+  const ATTENDANCE_LABELS: Record<string, string> = {
+    present: "Ҳозир",
+    absent: "Ғоиб",
+  };
+
   return (
-    <div className="space-y-4">
-      <Accordion type="single" collapsible className="w-full space-y-4">
-        {students.map((student, index) => (
-          <AccordionItem
-            key={student.fullName}
-            value={`item-${index}`}
-            className="border rounded-xl bg-card px-4 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <AccordionTrigger className="hover:no-underline py-4">
-              <div className="flex items-center gap-4 w-full">
-                <Avatar className="h-10 w-10 border-2 border-muted">
-                  <AvatarFallback className="font-bold text-primary">{getInitials(student.fullName)}</AvatarFallback>
-                </Avatar>
-                <div className="text-left flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="font-bold text-base">{student.fullName}</p>
-                    <p className="text-xs text-muted-foreground">Донишҷӯ</p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-5xl h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="px-6 pt-5 pb-0 flex-shrink-0">
+          <DialogTitle className="text-xl flex items-center gap-2 font-bold">
+            <Save className="w-5 h-5 text-primary" />
+            Таҳрири якҷояи баҳоҳо — {group.name}
+          </DialogTitle>
+          <div className="flex items-center gap-4 mt-3 bg-muted/40 p-3 rounded-lg border">
+            <div className="flex-1">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Фан</p>
+              <p className="font-bold text-sm">{subject.name}</p>
+            </div>
+            <div className="w-36">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Ҳафта</p>
+              <Select value={String(week)} onValueChange={(v) => setWeek(Number(v))}>
+                <SelectTrigger className="h-9 bg-background border-primary/30 font-semibold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(() => {
+                    let maxWeeks = 16;
+                    if (user?.role !== "admin" && semesterStart) {
+                      const start = startOfDay(new Date(semesterStart));
+                      const now = startOfDay(new Date());
+                      const calculatedWeek = differenceInWeeks(now, start) + 1;
+                      maxWeeks = Math.min(16, Math.max(1, calculatedWeek));
+                    }
+                    return Array.from({ length: maxWeeks }).map((_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>Ҳафтаи {i + 1}</SelectItem>
+                    ));
+                  })()}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-2 mt-2">
+            <span className="font-semibold text-blue-700">📋 Роҳнамо:</span>
+            <span>• <b>Давомот</b> — ба ҳар дарс алоҳида</span>
+            <span>• <b>Тайёрӣ ва Вазифа</b> — як бор дар ҳафта</span>
+          </div>
+        </DialogHeader>
+
+        {/* Students List */}
+        <ScrollArea className="flex-1 px-6 py-3">
+          <div className="space-y-2">
+            {editingData.map((item, idx) => (
+              <div key={item.studentId} className="border rounded-xl overflow-hidden bg-white shadow-sm">
+                {/* Student header: name + prep/task */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <span className="font-semibold text-sm">{item.fullName}</span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-muted-foreground">Миёна</span>
-                      <span className={cn("font-bold", student.totalAvg >= 100 ? "text-emerald-600" : "text-rose-600")}>
-                        {student.totalAvg.toFixed(2)}
-                      </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[9px] text-violet-500 font-bold uppercase tracking-wider">Тайёрӣ</span>
+                      <div className="relative">
+                        <Select
+                          value={String(item.preparationGrade ?? "")}
+                          onValueChange={(v) => handleGradeUpdate(item.studentId, "preparationGrade", v)}
+                        >
+                          <SelectTrigger className="h-9 w-20 text-center font-bold text-base border-2 border-violet-200 focus:border-violet-500 bg-violet-50 rounded-lg justify-center gap-1">
+                            <SelectValue placeholder="–" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="1.5">1.5</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="2.5">2.5</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="absolute -bottom-3.5 left-0 right-0 text-center text-[9px] text-violet-400">/ 2.5</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[9px] text-amber-500 font-bold uppercase tracking-wider">Вазифа</span>
+                      <div className="relative">
+                        <Select
+                          value={String(item.taskGrade ?? "")}
+                          onValueChange={(v) => handleGradeUpdate(item.studentId, "taskGrade", v)}
+                        >
+                          <SelectTrigger className="h-9 w-20 text-center font-bold text-base border-2 border-amber-200 focus:border-amber-500 bg-amber-50 rounded-lg justify-center gap-1">
+                            <SelectValue placeholder="–" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0</SelectItem>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3</SelectItem>
+                            <SelectItem value="4">4</SelectItem>
+                            <SelectItem value="5">5</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="absolute -bottom-3.5 left-0 right-0 text-center text-[9px] text-amber-400">/ 5</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pb-4 pt-2 border-t mt-2">
-              {/* Grid of Weeks */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                {Array.from({ length: 16 }).map((_, weekIndex) => {
-                  const weekNum = weekIndex + 1;
-                  const avg = student.weeklyAverages[weekIndex];
-
-                  // Find detailed grades for this week
-                  // Note: grades is flat array of days. We need to filter by weekNumber
-                  // Optimization: In a real scenario we'd pre-group, but for render this is okay
-                  // ... дохили Array.from({ length: 16 }).map(...)
-                  const weekDays = student.gradesRaw?.filter((d: any) => d.weekNumber === weekNum) || [];
-                  const gradesInWeek: number[] = [];
-
-                  weekDays.forEach((day: any) => {
-                    day.lessons.forEach((l: any) => {
-                      if (l.lessonType === "lecture") return;
-
-                      if (String(l.subjectId) === String(subjectId)) {
-                        const prep = l.preparationGrade !== null && l.preparationGrade !== undefined ? Number(l.preparationGrade) : 0;
-                        const task = l.taskGrade !== null && l.taskGrade !== undefined ? Number(l.taskGrade) : 0;
-
-                        // ИСЛОҲИ АСОСӢ: ҲАМЕША ба 2 тақсим мекунем ва 0-ро ҳам қабул мекунем
-                        const lessonGrade = (prep + task) / 2;
-
-                        // Push grade (even if 0) to array for display
-                        gradesInWeek.push(lessonGrade);
-                      }
-                    });
-                  });
-
-                  return (
-                    <div key={weekNum} className="flex flex-col p-3 rounded-lg bg-muted/30 border relative">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[10px] uppercase text-muted-foreground font-bold">Ҳафтаи {weekNum}</span>
-                        {/* Calculate weekly average for display */}
-                        {gradesInWeek.length > 0 && (
-                          <Badge variant="outline" className={cn("text-[10px] h-5 px-1",
-                            avg >= 11 ? "text-emerald-600 border-emerald-200 bg-emerald-50" :
-                              avg >= 8 ? "text-blue-600 border-blue-200 bg-blue-50" :
-                                avg >= 6 ? "text-amber-600 border-amber-200 bg-amber-50" :
-                                  "text-rose-600 border-rose-200 bg-rose-50"
+                {/* Per-lesson attendance */}
+                {item.lessons.length > 0 ? (
+                  <div className="px-4 py-2 flex flex-wrap gap-2">
+                    {item.lessons.map((lesson: any, lIdx: number) => (
+                      <div key={lIdx} className="flex items-center gap-1.5 border rounded-lg px-2 py-1 bg-slate-50/80">
+                        <span className={cn(
+                          "text-[9px] font-bold px-1 py-0.5 rounded border uppercase",
+                          lesson.lessonType === 'lecture' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                            lesson.lessonType === 'lab' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                              'bg-green-100 text-green-700 border-green-200'
+                        )}>
+                          {lesson.lessonType === 'lecture' ? 'ЛЕК' : lesson.lessonType === 'lab' ? 'ЛАБ' : 'АМА'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {lesson.dateLabel || lesson.date?.substring(5, 10)}
+                        </span>
+                        <Select
+                          value={lesson.attendance}
+                          onValueChange={(v) => handleAttendanceUpdate(item.studentId, lIdx, v)}
+                        >
+                          <SelectTrigger className={cn(
+                            "h-6 text-[10px] font-bold border px-1.5 min-w-[68px]",
+                            ATTENDANCE_COLORS[lesson.attendance] || "bg-slate-100"
                           )}>
-                            Score: {avg.toFixed(1)}
-                          </Badge>
-                        )}
+                            <SelectValue>
+                              {ATTENDANCE_LABELS[lesson.attendance] || lesson.attendance}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent position="popper" sideOffset={4}>
+                            <SelectItem value="present">✅ Ҳозир</SelectItem>
+                            <SelectItem value="absent">❌ Ғоиб</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-
-                      {/* Individual Grades */}
-                      <div className="flex flex-wrap gap-1 min-h-[24px]">
-                        {gradesInWeek.length > 0 ? (
-                          gradesInWeek.map((g, idx) => (
-                            <div key={idx} className={cn("w-6 h-6 flex items-center justify-center rounded text-xs font-bold text-white shadow-sm",
-                              getGradeStyle(g)
-                            )}>
-                              {g}
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-xs text-muted-foreground/50 italic">Дарс набуд</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-4 py-2 text-xs text-muted-foreground italic">
+                    Дарс сабт нашудааст — баҳо бевосита сабт мешавад
+                  </div>
+                )}
               </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
-    </div>
+            ))}
+          </div>
+        </ScrollArea>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t flex justify-between items-center bg-muted/5 flex-shrink-0">
+          <span className="text-xs text-muted-foreground">{editingData.length} донишҷӯ • Ҳафтаи {week}</span>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose} disabled={loading}>
+              <X className="w-4 h-4 mr-2" /> Бекор кардан
+            </Button>
+            <Button onClick={handleSubmit} disabled={loading} className="min-w-[130px]">
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Сабт кардан
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
-});
+};
 
 // --- MAIN PAGE ---
 export default function AdminWeeklyGradePage() {
+  const { user } = useAuth();
+  const { groupId: paramGroupId } = useParams();
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState("");
+  const [selectedGroup, setSelectedGroup] = useState(paramGroupId || "");
   const [data, setData] = useState<GradebookData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<any | null>(null);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [semester, setSemester] = useState<1 | 2>(1); // Default logic below
 
   const apiUrl = import.meta.env.VITE_API_URL;
+
+  // Sync param to state if it changes
+  useEffect(() => {
+    if (paramGroupId) {
+      setSelectedGroup(paramGroupId);
+    }
+  }, [paramGroupId]);
 
   // Initial semester set based on date
   useEffect(() => {
@@ -755,6 +1164,11 @@ export default function AdminWeeklyGradePage() {
         }
       );
       setData(res.data);
+
+      // Auto-select first subject if none selected
+      if (!selectedSubject && res.data.subjects && res.data.subjects.length > 0) {
+        setSelectedSubject(res.data.subjects[0]._id);
+      }
     } catch (err) {
       console.error(err);
       setData(null);
@@ -777,7 +1191,11 @@ export default function AdminWeeklyGradePage() {
       expectedCounts[w - 1] = lessonCounts[w] || 0;
     }
 
-    return data.students.map((student) => {
+    const filteredStudents = searchQuery
+      ? data.students.filter(s => s.fullName.toLowerCase().includes(searchQuery.toLowerCase()))
+      : data.students;
+
+    return filteredStudents.map((student) => {
       const weeklyScores = new Float32Array(16);
       const grades = student.grades;
 
@@ -804,29 +1222,33 @@ export default function AdminWeeklyGradePage() {
           continue;
         }
 
+        // Only count lessons that have been "marked" (attendance is not null)
+        const markedLessons = relevantLessons.filter(l => l.attendance !== null);
+        const markedCount = markedLessons.length;
+
         // 2. Attendance Score (Max 5)
-        // Formula: (attended / total) * 5
-        const attendedCount = relevantLessons.filter(l => l.attendance === 'present').length;
-        const attendanceScore = (attendedCount / totalLessons) * 5;
+        let attendanceScore = 0;
+        if (markedCount > 0) {
+          const attendedCount = markedLessons.filter(l => l.attendance === 'present' || l.attendance === 'late').length;
+          attendanceScore = (attendedCount / markedCount) * 5;
+        }
 
         // 3. Preparation Score (Max 2.5)
-        // Formula: ((sum(prep) / total) / 5) * 2.5
-        // preparationGrade 0-5
-        const sumPrep = relevantLessons.reduce((acc, l) => acc + (l.preparationGrade || 0), 0);
-        const avgPrep = sumPrep / totalLessons;
-        const preparationScore = (avgPrep / 5) * 2.5;
+        // preparationGrade аллакай дар шкалаи 0-2.5 аст, нормализатсия лозим нест
+        let preparationScore = 0;
+        if (markedCount > 0) {
+          const sumPrep = markedLessons.reduce((acc, l) => acc + (l.preparationGrade || 0), 0);
+          preparationScore = sumPrep / markedCount;  // миёна аз 0-2.5
+        }
 
         // 4. Assignment Score (Max 5)
-        // Applies ONLY to practical and laboratory
-        // Formula: ((sum(task) / practiceCount) / 5) * 5
-        const practicalLessons = relevantLessons.filter(l => l.lessonType === 'practice' || l.lessonType === 'lab');
-        const assignLessonCount = practicalLessons.length;
-
+        // taskGrade аллакай дар шкалаи 0-5 аст, нормализатсия лозим нест
+        const practicalMarked = markedLessons.filter(l => l.lessonType === 'practice' || l.lessonType === 'lab');
+        const practicalMarkedCount = practicalMarked.length;
         let assignmentScore = 0;
-        if (assignLessonCount > 0) {
-          const sumAssign = practicalLessons.reduce((acc, l) => acc + (l.taskGrade || 0), 0);
-          const avgAssign = sumAssign / assignLessonCount;
-          assignmentScore = (avgAssign / 5) * 5;
+        if (practicalMarkedCount > 0) {
+          const sumAssign = practicalMarked.reduce((acc, l) => acc + (l.taskGrade || 0), 0);
+          assignmentScore = sumAssign / practicalMarkedCount;  // миёна аз 0-5
         }
 
         // Weekly Total
@@ -847,6 +1269,7 @@ export default function AdminWeeklyGradePage() {
       const totalScore = block1Score + block2Score;
 
       return {
+        _id: student._id,
         fullName: student.fullName,
         weeklyAverages: Array.from(weeklyScores), // Now represents Weekly Scores (0-12.5)
         weeklyExpectedCounts: expectedCounts,
@@ -898,7 +1321,9 @@ export default function AdminWeeklyGradePage() {
 
   const currentSemesterName = semester === 1
     ? "Семестри 1 (аз 1 сентябр)"
-    : "Семестри 2 (аз 1 феврал)";
+    : (data as any)?.course === 4
+      ? "Семестри 2 (аз 19 январ)"
+      : "Семестри 2 (аз 1 феврал)";
 
   return (
     <DashboardLayout>
@@ -914,41 +1339,61 @@ export default function AdminWeeklyGradePage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border">
-              <button
-                onClick={() => setSemester(1)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${semester === 1
-                  ? "bg-white text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                Семестри 1
-              </button>
-              <button
-                onClick={() => setSemester(2)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${semester === 2
-                  ? "bg-white text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                Семестри 2
-              </button>
+          {/* Semester and Search Filters */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 bg-white/50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm backdrop-blur-sm">
+            <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl border-2 border-primary/20 focus-within:border-primary transition-all shadow-inner w-full sm:w-64">
+              <Search className="w-5 h-5 text-primary/60" />
+              <input
+                type="text"
+                placeholder="Ҷустуҷӯи донишҷӯ..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none outline-none text-sm font-medium w-full placeholder:text-slate-400"
+              />
             </div>
 
-            <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Гурӯҳ" />
-              </SelectTrigger>
-              <SelectContent>
-                {groups.map((g) => (
-                  <SelectItem key={g._id} value={g._id}>
-                    {g.name} (Курси {g.course})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-4 ml-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Семестр:</span>
+                <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <button
+                    onClick={() => setSemester(1)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-sm font-bold transition-all",
+                      semester === 1
+                        ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    1
+                  </button>
+                  <button
+                    onClick={() => setSemester(2)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-sm font-bold transition-all",
+                      semester === 2
+                        ? "bg-white dark:bg-slate-700 text-primary shadow-sm shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    2
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
+          <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Гурӯҳ" />
+            </SelectTrigger>
+            <SelectContent>
+              {groups.map((g) => (
+                <SelectItem key={g._id} value={g._id}>
+                  {g.name} (Курси {g.course})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Tabs defaultValue="subjects" className="space-y-6">
@@ -970,9 +1415,19 @@ export default function AdminWeeklyGradePage() {
               </SelectContent>
             </Select>
             {selectedSubject && data && (
-              <Badge variant="secondary" className="text-base px-4 py-1">
-                {data.subjects.find((s) => s._id === selectedSubject)?.name}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary" className="text-base px-4 py-1">
+                  {data.subjects.find((s) => s._id === selectedSubject)?.name}
+                </Badge>
+                <Button
+                  size="sm"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all active:scale-95"
+                  onClick={() => setIsBulkEditOpen(true)}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Таҳрири якҷоя
+                </Button>
+              </div>
             )}
           </div>
 
@@ -991,6 +1446,8 @@ export default function AdminWeeklyGradePage() {
               <WeeklyGradesList
                 students={subjectStudent16Weeks}
                 subjectId={selectedSubject}
+                currentWeek={getCurrentWeekNum((data as any)?.semesterStart, (data as any)?.course, semester)}
+                userRole={user?.role}
               />
             )}
           </TabsContent>
@@ -1017,6 +1474,11 @@ export default function AdminWeeklyGradePage() {
                     student={selectedStudentDetails}
                     subjectName={data?.subjects.find(s => s._id === selectedSubject)?.name || ""}
                     subjectId={selectedSubject}
+                    groupId={selectedGroup}
+                    semesterStart={(data as any).semesterStart}
+                    course={(data as any).course}
+                    semester={semester}
+                    onSave={fetchData}
                     onClose={handleCloseModal}
                   />
                 </>
@@ -1034,7 +1496,23 @@ export default function AdminWeeklyGradePage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {selectedSubject && data && (
+          <WeeklyBulkEditModal
+            isOpen={isBulkEditOpen}
+            onClose={() => setIsBulkEditOpen(false)}
+            group={{ _id: selectedGroup, name: data.groupName }}
+            subject={{
+              _id: selectedSubject,
+              name: data.subjects.find(s => s._id === selectedSubject)?.name || ""
+            }}
+            students={subjectStudent16Weeks}
+            semester={semester}
+            semesterStart={(data as any).semesterStart}
+            onSuccess={fetchData}
+          />
+        )}
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

@@ -50,6 +50,8 @@ const adminNavItems: NavItem[] = [
 
 const teacherNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Панел', path: '/teacher' },
+  { icon: AlertCircle, label: 'Дарсҳои Нашуда', path: '/teacher/attendance/missing' },
+  { icon: CalendarDays, label: 'Баҳоҳои ҳафтаина', path: '/teacher/grades/weekly' },
   { icon: BookOpen, label: 'Фанҳро дидан', path: '/teacher/subjects' },
   { icon: Users, label: 'Гурӯҳҳоро дидан', path: '/teacher/groups' },
   { icon: Calendar, label: 'Ҷадвали ҳафтаина', path: '/teacher/schedule' },

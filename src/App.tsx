@@ -68,11 +68,13 @@ function ProtectedRoute({
 
   // 🚫 Агар role иҷозат надорад
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // Special case for Deans accessing Admin routes
-    if (user.role === "teacher" && user.isDean && allowedRoles.includes("admin")) {
+    // Special case for Deans/Mudir accessing Admin routes
+    if ((user.role === "teacher" && user.isDean && allowedRoles.includes("admin")) ||
+      (user.role === "mudir" && (allowedRoles.includes("admin") || allowedRoles.includes("teacher")))) {
       // Allow access
     } else {
-      return <Navigate to={`/${user.role}`} replace />;
+      const redirectPath = user.role === "mudir" ? "/admin/grades/weekly" : `/${user.role}`;
+      return <Navigate to={redirectPath} replace />;
     }
   }
 
@@ -158,7 +160,7 @@ function AppRoutes() {
       <Route
         path="/admin/grades/weekly"
         element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "mudir"]}>
             <WeeklyGradePage />
           </ProtectedRoute>
         }
@@ -166,7 +168,7 @@ function AppRoutes() {
       <Route
         path="/admin/grades"
         element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "mudir"]}>
             <GradeJournal />
           </ProtectedRoute>
         }
@@ -198,7 +200,7 @@ function AppRoutes() {
       <Route
         path="/admin/schedule"
         element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "mudir"]}>
             <WeeklySchedule />
           </ProtectedRoute>
         }
@@ -244,6 +246,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["teacher"]}>
             <JournalByGroupPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/teacher/attendance/missing"
+        element={
+          <ProtectedRoute allowedRoles={["teacher"]}>
+            <MissingAttendance />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/teacher/grades/weekly/:groupId?"
+        element={
+          <ProtectedRoute allowedRoles={["teacher"]}>
+            <WeeklyGradePage />
           </ProtectedRoute>
         }
       />
@@ -298,7 +316,7 @@ function AppRoutes() {
       <Route
         path="/teacher/schedule"
         element={
-          <ProtectedRoute allowedRoles={["teacher"]}>
+          <ProtectedRoute allowedRoles={["teacher", "mudir"]}>
             <WeeklySchedule />
           </ProtectedRoute>
         }

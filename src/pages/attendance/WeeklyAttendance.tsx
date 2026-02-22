@@ -174,7 +174,12 @@ export default function WeeklyAttendancePage() {
 
   const stats = data ? calculateWeekStats(data.students) : null;
 
-  const currentSemesterName = semester === 2 ? "Семестри 2 (аз 1 феврал)" : "Семестри 1 (аз 1 сентябр)";
+  const selectedGroupData = groups.find(g => g._id === selectedGroup);
+  const currentSemesterName = semester === 2
+    ? selectedGroupData?.course === 4
+      ? "Семестри 2 (аз 19 январ)"
+      : "Семестри 2 (аз 1 феврал)"
+    : "Семестри 1 (аз 1 сентябр)";
 
   if (!selectedGroup) {
     return (
@@ -385,7 +390,7 @@ export default function WeeklyAttendancePage() {
                       {data?.days.map((day) => (
                         <th
                           key={day.date}
-                          colSpan={6}
+                          colSpan={3}
                           className="px-4 py-3 text-center font-semibold text-secondary-foreground border-l border-border"
                         >
                           <div className="text-sm capitalize">
@@ -403,7 +408,7 @@ export default function WeeklyAttendancePage() {
                         Ҳамагӣ
                       </th>
                       {data?.days.map((day, dayIdx) =>
-                        [1, 2, 3, 4, 5, 6].map((lesson) => (
+                        [1, 2, 3].map((lesson) => (
                           <th
                             key={`${dayIdx}-${lesson}`}
                             className="px-2 py-2 text-center text-xs font-medium text-muted-foreground"

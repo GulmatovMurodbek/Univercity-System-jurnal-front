@@ -85,13 +85,15 @@ export default function Students() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      // Pass pagination and search params
+      // Pass pagination, search, group and course params
       const { data } = await axios.get(`${apiUrl}/students`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
           page: currentPage,
           limit: 10,
-          search: searchQuery
+          search: searchQuery,
+          course: selectedCourse,
+          group: selectedGroup
         }
       });
 
@@ -125,17 +127,11 @@ export default function Students() {
   }, []);
 
   useEffect(() => {
-    // Reset to page 1 if search changes
-    // But this effect runs on page change too. 
-    // If search changed, we should probably setPage(1). 
-    // Let's do a separate effect for search reset if needed, or just let user navigate.
-    // Better: If search changes, setPage(1) manually in input handler?
-    // For now, simpler: Just fetch.
     const timer = setTimeout(() => {
       getStudents();
     }, 300); // 300ms debounce
     return () => clearTimeout(timer);
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, selectedCourse, selectedGroup]);
 
   // Handle Search Input Change separately to reset page
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,7 +179,7 @@ export default function Students() {
                   className="pl-10"
                 />
               </div>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <Select value={selectedCourse} onValueChange={(v) => { setSelectedCourse(v); setPage(1); }}>
                 <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Курс" />
                 </SelectTrigger>
@@ -195,7 +191,7 @@ export default function Students() {
                   <SelectItem value="4">Курси 4</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+              <Select value={selectedGroup} onValueChange={(v) => { setSelectedGroup(v); setPage(1); }}>
                 <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Гурӯҳ" />
                 </SelectTrigger>
@@ -203,7 +199,7 @@ export default function Students() {
                   <SelectItem value="all">Ҳама гурӯҳҳо</SelectItem>
                   {groups?.map((group) => (
                     <SelectItem key={group._id} value={group._id}>
-                      {group.name}
+                      {group.name} (Курси {group.course})
                     </SelectItem>
                   ))}
                 </SelectContent>
