@@ -17,7 +17,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Loader2, Save, X } from "lucide-react";
+import { Loader2, Save, X, Clock } from "lucide-react";
 import { differenceInWeeks, startOfDay } from "date-fns";
 
 // --- TYPES ---
@@ -193,7 +193,6 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
   canEdit?: boolean
 }) => {
   const { user } = useAuth();
-  // Logic to calculate specific breakdown values
   const weekDays = student.gradesRaw?.filter((d: any) => d.weekNumber === weekNum) || [];
   const relevantLessons: any[] = [];
 
@@ -205,28 +204,32 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
     });
   });
 
-  const totalLessons = relevantLessons.length;
-  if (totalLessons === 0) {
+  const markedLessons = relevantLessons.filter(l => l.attendance !== null);
+  const markedCount = markedLessons.length;
+
+  if (markedCount === 0) {
     return (
-      <div className="flex items-center justify-between p-4 border rounded-xl bg-muted/5 text-muted-foreground mb-4">
-        <span className="font-semibold">Ҳафтаи {weekNum}</span>
-        <span className="text-sm italic">Дарс набуд</span>
+      <div className="flex items-center justify-between p-4 border rounded-xl bg-amber-50/20 text-amber-600 mb-4 border-amber-100">
+        <span className="font-semibold italic flex items-center gap-2">
+          <Clock className="w-4 h-4" /> Ҳафтаи {weekNum} — То ҳол қайд нашудааст
+        </span>
       </div>
     );
   }
 
-  // Attendance
-  const attendedCount = relevantLessons.filter(l => l.attendance === 'present' || l.attendance === 'late').length;
-  const attendanceScore = (attendedCount / totalLessons) * 5;
+  const attendedCount = markedLessons.filter(l => l.attendance === 'present' || l.attendance === 'late').length;
+  const attendanceScore = (attendedCount / markedCount) * 5;
 
-  // Single prep grade for the week: value from the first lesson
-  const weekPrepGrade: number = relevantLessons.find(l => l.preparationGrade != null && l.preparationGrade !== undefined)?.preparationGrade ?? 0;
-  const preparationScore = weekPrepGrade;
+  const preparationScore = markedLessons.reduce((max, l) => {
+    const val = Number(l.preparationGrade);
+    return (!isNaN(val) && val > max) ? val : max;
+  }, 0);
 
-  // Single assignment grade: from first practice/lab lesson
-  const firstPractical = relevantLessons.find(l => l.lessonType === 'practice' || l.lessonType === 'lab');
-  const weekTaskGrade: number = firstPractical?.taskGrade ?? 0;
-  const assignmentScore = weekTaskGrade;
+  const practicalMarked = markedLessons.filter(l => l.lessonType === 'practice' || l.lessonType === 'lab');
+  const assignmentScore = practicalMarked.reduce((max, l) => {
+    const val = Number(l.taskGrade);
+    return (!isNaN(val) && val > max) ? val : max;
+  }, 0);
 
   const weeklyTotal = attendanceScore + preparationScore + assignmentScore;
 
@@ -250,7 +253,6 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
     }
   };
 
-  // The first editItem for prep/task editing
   const firstEditItem = editingData && editingData.length > 0 ? editingData[0] : null;
 
   return (
@@ -258,7 +260,6 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
       "border rounded-xl overflow-hidden bg-white mb-4 shadow-sm hover:shadow-md transition-all font-sans",
       isEditing && "ring-2 ring-indigo-500 border-indigo-200 shadow-indigo-100"
     )}>
-      {/* Header */}
       <div className={cn("p-4 border-b flex justify-between items-center", isEditing ? "bg-indigo-50/50" : "bg-slate-50")}>
         <h3 className="font-bold text-lg text-slate-800">Ҳафтаи {weekNum}</h3>
         <div className="flex items-center gap-3">
@@ -278,7 +279,6 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
               variant="ghost"
               className="text-indigo-600 h-8 font-bold hover:bg-indigo-50"
               onClick={() => {
-                // Check if user is authorized for this specific week/subject
                 const isAuthorized = user?.role === 'admin' || relevantLessons.some(l => String(l.teacherId) === String(user?._id));
                 if (isAuthorized) {
                   onEdit(weekNum);
@@ -297,7 +297,6 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-        {/* Attendance Column — per lesson */}
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
             <div className="p-1.5 rounded-md bg-blue-100 text-blue-700">
@@ -321,8 +320,7 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
                     {!isEditing && (
                       l.attendance ? (
                         <Badge variant="outline" className={cn("border-0 font-medium",
-                          l.attendance === 'present' ? "bg-emerald-100 text-emerald-700" :
-                            "bg-rose-100 text-rose-700"
+                          l.attendance === 'present' ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
                         )}>
                           {l.attendance === 'present' ? "Ҳозир" : "Ғоиб"}
                         </Badge>
@@ -352,12 +350,11 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
 
           <div className="mt-4 pt-3 border-t border-dashed">
             <p className="text-xs text-slate-500 text-center font-mono bg-slate-50 p-2 rounded">
-              {attendedCount} / {totalLessons} × 5 = <span className="font-bold text-foreground">{attendanceScore.toFixed(2)}</span>
+              {attendedCount} / {markedCount} × 5 = <span className="font-bold text-foreground">{attendanceScore.toFixed(2)}</span>
             </p>
           </div>
         </div>
 
-        {/* Preparation Column — ONE value per week */}
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
             <div className="p-1.5 rounded-md bg-purple-100 text-purple-700">
@@ -392,7 +389,7 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
               </div>
             ) : (
               <div className="text-center">
-                <div className="text-4xl font-bold text-violet-600 mb-1">{weekPrepGrade}</div>
+                <div className="text-4xl font-bold text-violet-600 mb-1">{preparationScore}</div>
                 <div className="text-xs text-slate-400">із 2.5 балов</div>
               </div>
             )}
@@ -405,7 +402,6 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
           </div>
         </div>
 
-        {/* Assignment Column — ONE value per week */}
         <div className="p-4 space-y-3 bg-orange-50/30">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
             <div className="p-1.5 rounded-md bg-orange-100 text-orange-700">
@@ -442,7 +438,7 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
               </div>
             ) : (
               <div className="text-center">
-                <div className="text-4xl font-bold text-amber-600 mb-1">{weekTaskGrade}</div>
+                <div className="text-4xl font-bold text-amber-600 mb-1">{assignmentScore}</div>
                 <div className="text-xs text-slate-400">із 5 балов</div>
               </div>
             )}
@@ -458,7 +454,6 @@ const WeeklyBreakdown = memo(({ weekNum, student, subjectId, onEdit, isEditing, 
     </div>
   );
 });
-
 
 // 3. Memoized Weekly List (Detailed Accordion)
 const WeeklyGradesList = memo(({ students, subjectId, currentWeek, userRole }: { students: any[], subjectId: string, currentWeek: number, userRole: string | undefined }) => {
@@ -591,10 +586,15 @@ const StudentModalRefactored = memo(({ student, subjectName, subjectId, groupId,
   };
 
   const handleUpdateField = (lessonKey: string, field: string, value: any) => {
-    const [date, slot] = lessonKey.split('_');
-    setEditingData(prev => prev.map(item =>
-      (item.date === date && String(item.slot) === slot) ? { ...item, [field]: value } : item
-    ));
+    if (field === 'preparationGrade' || field === 'taskGrade') {
+      // Sync across all lessons for this week
+      setEditingData(prev => prev.map(item => ({ ...item, [field]: value })));
+    } else {
+      const [date, slot] = lessonKey.split('_');
+      setEditingData(prev => prev.map(item =>
+        (item.date === date && String(item.slot) === slot) ? { ...item, [field]: value } : item
+      ));
+    }
   };
 
   const handleSave = async () => {
@@ -616,19 +616,17 @@ const StudentModalRefactored = memo(({ student, subjectName, subjectId, groupId,
 
       // Authorization check (Client side)
       if (user?.role !== 'admin') {
-        const canSaveAll = updates.every(u => {
-          // Find original lesson teacherId from student data
-          const weekNum = editingWeek;
-          const dayData = student.gradesRaw?.find((d: any) => d.dateStr === u.date);
-          const lesson = dayData?.lessons?.find((l: any) => l.lessonSlot === u.slot && String(l.subjectId) === String(u.subjectId));
+        const canSave = student.gradesRaw?.some((d: any) =>
+          d.lessons?.some((l: any) => {
+            const isMatch = String(l.subjectId) === String(subjectId);
+            const tid = (l.teacherId as any)?._id || l.teacherId;
+            const uid = user?.id || user?._id;
+            return isMatch && String(tid) === String(uid);
+          })
+        );
 
-          const tid = (lesson?.teacherId as any)?._id || lesson?.teacherId;
-          const uid = user?.id || user?._id;
-          return String(tid) === String(uid);
-        });
-
-        if (!canSaveAll) {
-          toast.error("Шумо танҳо дарсҳои ба худатон вабастаро таҳрир карда метавонед");
+        if (!canSave) {
+          toast.error("Шумо муаллими ин фан нестед");
           setIsSaving(false);
           return;
         }
@@ -788,17 +786,18 @@ const WeeklyBulkEditModal = ({
           });
         });
 
-        // Get prep/task from first lesson with any data
         const allLessons = weekGrades.flatMap((d: any) =>
           d.lessons.filter((l: any) => String(l.subjectId) === String(subject._id))
         );
-        const firstWithGrade = allLessons[0];
+        // Get prep/task from first lesson that has any grade recorded
+        const lessonWithPrep = allLessons.find(l => l.preparationGrade != null && l.preparationGrade !== "");
+        const lessonWithTask = allLessons.find(l => l.taskGrade != null && l.taskGrade !== "");
 
         return {
           studentId: s._id,
           fullName: s.fullName,
-          preparationGrade: firstWithGrade?.preparationGrade ?? "",
-          taskGrade: firstWithGrade?.taskGrade ?? "",
+          preparationGrade: (lessonWithPrep?.preparationGrade ?? "").toString(),
+          taskGrade: (lessonWithTask?.taskGrade ?? "").toString(),
           lessons,
         };
       });
@@ -888,20 +887,21 @@ const WeeklyBulkEditModal = ({
 
       // Authorization Check (Client side fallback)
       if (user?.role !== 'admin') {
-        const myUpdates = updates.filter(u => {
-          const tid = (u.teacherId as any)?._id || u.teacherId;
-          const uid = user?.id || user?._id;
-          return String(tid) === String(uid);
-        });
+        const isTeacherForSubject = students.some(s =>
+          s.gradesRaw?.some((d: any) =>
+            d.lessons?.some((l: any) => {
+              const isMatch = String(l.subjectId) === String(subject._id);
+              const tid = (l.teacherId as any)?._id || l.teacherId;
+              const uid = user?.id || user?._id;
+              return isMatch && String(tid) === String(uid);
+            })
+          )
+        );
 
-        if (myUpdates.length === 0) {
-          toast.error("Шумо муаллими ягон дарси ин ҳафта нестед, бинобар ин захира карда наметавонед.");
+        if (!isTeacherForSubject) {
+          toast.error("Шумо муаллими ин фан нестед");
           setLoading(false);
           return;
-        }
-        // If some are not mine, we warn but proceed (backend will filter)
-        if (myUpdates.length < updates.length) {
-          toast.warning(`Танҳо ${myUpdates.length} дарси ба шумо тааллуқдошта сабт мешавад.`);
         }
       }
 
@@ -1234,21 +1234,27 @@ export default function AdminWeeklyGradePage() {
         }
 
         // 3. Preparation Score (Max 2.5)
-        // preparationGrade аллакай дар шкалаи 0-2.5 аст, нормализатсия лозим нест
+        // Correct Logic: Take the MAXIMUM grade recorded in the week for this subject.
+        // This makes it robust against mixed marking (e.g. one lesson marked grade, another just attendance).
         let preparationScore = 0;
         if (markedCount > 0) {
-          const sumPrep = markedLessons.reduce((acc, l) => acc + (l.preparationGrade || 0), 0);
-          preparationScore = sumPrep / markedCount;  // миёна аз 0-2.5
+          const maxPrep = markedLessons.reduce((max, l) => {
+            const val = Number(l.preparationGrade);
+            return (!isNaN(val) && val > max) ? val : max;
+          }, 0);
+          preparationScore = maxPrep;
         }
 
         // 4. Assignment Score (Max 5)
-        // taskGrade аллакай дар шкалаи 0-5 аст, нормализатсия лозим нест
+        // Correct Logic: Take the MAXIMUM grade recorded in the week.
         const practicalMarked = markedLessons.filter(l => l.lessonType === 'practice' || l.lessonType === 'lab');
-        const practicalMarkedCount = practicalMarked.length;
         let assignmentScore = 0;
-        if (practicalMarkedCount > 0) {
-          const sumAssign = practicalMarked.reduce((acc, l) => acc + (l.taskGrade || 0), 0);
-          assignmentScore = sumAssign / practicalMarkedCount;  // миёна аз 0-5
+        if (practicalMarked.length > 0) {
+          const maxAssign = practicalMarked.reduce((max, l) => {
+            const val = Number(l.taskGrade);
+            return (!isNaN(val) && val > max) ? val : max;
+          }, 0);
+          assignmentScore = maxAssign;
         }
 
         // Weekly Total
