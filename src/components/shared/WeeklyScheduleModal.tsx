@@ -241,9 +241,17 @@ export function WeeklyScheduleModal({
       initialSchedule.week.forEach((dayData: any) => {
         const d = dayData.day;
         if (!init[d]) init[d] = {};
-        dayData.lessons.forEach((l: any, idx: number) => {
-          const slot = idx + 1;
-          if (!init[d][slot]) init[d][slot] = {};
+
+        let pairNum = 1;
+        let i = 0;
+        const lessons = dayData.lessons || [];
+
+        while (i < lessons.length && pairNum <= SLOT_COUNT) {
+          const l = lessons[i];
+          if (!l) { i++; pairNum++; continue; }
+
+          if (!init[d][pairNum]) init[d][pairNum] = {};
+
           const lesson: SlotLesson = {
             subjectId: l.subjectId?._id || l.subjectId || "",
             teacherId: l.teacherId?._id || l.teacherId || "",
@@ -253,10 +261,31 @@ export function WeeklyScheduleModal({
             building: l.building || "",
             weekType: l.weekType || "all",
           };
-          if (lesson.weekType === "odd") init[d][slot].odd = lesson;
-          else if (lesson.weekType === "even") init[d][slot].even = lesson;
-          else init[d][slot].both = lesson;
-        });
+
+          if (lesson.weekType === "odd") {
+            init[d][pairNum].odd = lesson;
+            const next = lessons[i + 1];
+            if (next && next.weekType === "even") {
+              init[d][pairNum].even = {
+                subjectId: next.subjectId?._id || next.subjectId || "",
+                teacherId: next.teacherId?._id || next.teacherId || "",
+                lessonType: next.lessonType || "lecture",
+                classroom: next.classroom || "",
+                department: next.department || "",
+                building: next.building || "",
+                weekType: "even",
+              };
+              i += 2;
+            } else { i++; }
+            pairNum++;
+          } else if (lesson.weekType === "even") {
+            init[d][pairNum].even = lesson;
+            i++; pairNum++;
+          } else {
+            init[d][pairNum].both = lesson;
+            i++; pairNum++;
+          }
+        }
       });
     }
     setGrid(init);
